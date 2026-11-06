@@ -23,13 +23,10 @@ jobs:
       - name: Prepare Android SDK
         shell: bash
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           if [ ! -x "$SDKMANAGER" ]; then
             SDKMANAGER="$(command -v sdkmanager)"
           fi
-          echo "Using sdkmanager: $SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
@@ -38,23 +35,30 @@ jobs:
         with:
           gradle-version: '8.10.2'
 
-      - name: Show project files
+      - name: Extract Android V4.5 project
+        shell: bash
         run: |
-          pwd
-          find . -maxdepth 2 -type f | sort | head -100
+          rm -rf android-source
+          mkdir -p android-source
+          unzip -q Android_Hybrid_V4.5_PROJECT_REUPLOAD.zip -d android-source
+          test -f android-source/v45_android/app/build.gradle
+          test -f android-source/v45_android/settings.gradle
+          echo "Android project extracted successfully"
 
       - name: Build Debug APK
+        working-directory: android-source/v45_android
         run: gradle :app:assembleDebug --stacktrace
 
       - name: Verify APK
         run: |
-          ls -lh app/build/outputs/apk/debug/
-          test -f app/build/outputs/apk/debug/app-debug.apk
-          unzip -t app/build/outputs/apk/debug/app-debug.apk >/dev/null
+          APK="android-source/v45_android/app/build/outputs/apk/debug/app-debug.apk"
+          test -f "$APK"
+          ls -lh "$APK"
+          unzip -t "$APK" >/dev/null
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Lop-Hoc-Thong-Minh-AI-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: android-source/v45_android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
