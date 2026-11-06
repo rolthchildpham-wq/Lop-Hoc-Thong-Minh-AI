@@ -165,7 +165,7 @@ public class MainActivity extends Activity {
 
     public class NativeVoiceBridge {
         @JavascriptInterface public void speak(String text, String lang) { runOnUiThread(() -> speakNative(text, lang)); }
-        @JavascriptInterface public void cancel() { runOnUiThread(() -> { if (tts != null) tts.stop(); }); }
+        @JavascriptInterface public void cancel() { runOnUiThread(() -> { if (neuralTts != null) neuralTts.cancel(); if (tts != null) tts.stop(); }); }
         @JavascriptInterface public boolean isReady() { return ttsReady; }
         @JavascriptInterface public boolean hasEnglish() { return true; }
         @JavascriptInterface public boolean hasChinese() { return true; }
@@ -174,12 +174,6 @@ public class MainActivity extends Activity {
 
     private void speakNative(String text, String lang) {
         if (text == null || text.trim().isEmpty()) return;
-
-        if (!ttsReady || tts == null) {
-            pendingText = text;
-            pendingLang = lang;
-            return;
-        }
 
         String l = lang == null ? "vi-VN" : lang.toLowerCase(Locale.ROOT);
 
@@ -290,6 +284,7 @@ public class MainActivity extends Activity {
     @Override protected void onPause() {
         super.onPause();
         if (webView != null) webView.onPause();
+        if (neuralTts != null) neuralTts.cancel();
         if (tts != null) tts.stop();
     }
 
