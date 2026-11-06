@@ -74,11 +74,10 @@ public final class NeuralTtsManager {
 
     private synchronized OfflineTts getEnglishTts() throws Exception {
         if (englishTts != null) return englishTts;
-        String dataDir = copyAssetDirToFiles("tts/en/espeak-ng-data");
         OfflineTtsVitsModelConfig vits = OfflineTtsVitsModelConfig.builder()
                 .setModel("tts/en/en_US-lessac-medium.onnx")
                 .setTokens("tts/en/tokens.txt")
-                .setDataDir(dataDir)
+                .setDataDir("tts/zh/espeak-ng-data")
                 .build();
         OfflineTtsModelConfig model = OfflineTtsModelConfig.builder()
                 .setVits(vits).setNumThreads(2).setDebug(false).build();
@@ -89,17 +88,18 @@ public final class NeuralTtsManager {
 
     private synchronized OfflineTts getChineseTts() throws Exception {
         if (chineseTts != null) return chineseTts;
-        String dataDir = copyAssetDirToFiles("tts/zh/espeak-ng-data");
         OfflineTtsKokoroModelConfig kokoro = OfflineTtsKokoroModelConfig.builder()
                 .setModel("tts/zh/model.onnx")
                 .setVoices("tts/zh/voices.bin")
                 .setTokens("tts/zh/tokens.txt")
                 .setLexicon("tts/zh/lexicon-us-en.txt,tts/zh/lexicon-zh.txt")
-                .setDataDir(dataDir)
+                .setDataDir("tts/en/espeak-ng-data")
                 .build();
         OfflineTtsModelConfig model = OfflineTtsModelConfig.builder()
                 .setKokoro(kokoro).setNumThreads(2).setDebug(false).build();
-        OfflineTtsConfig cfg = OfflineTtsConfig.builder().setModel(model).build();
+        OfflineTtsConfig cfg = OfflineTtsConfig.builder().setModel(model)
+                .setRuleFsts("tts/zh/date-zh.fst,tts/zh/phone-zh.fst,tts/zh/number-zh.fst")
+                .build();
         chineseTts = new OfflineTts(context.getAssets(), cfg);
         return chineseTts;
     }
