@@ -43,6 +43,7 @@ public class MainActivity extends Activity {
     private PermissionRequest pendingWebPermission;
     private TextToSpeech tts;
     private volatile boolean ttsReady = false;
+    private NeuralTtsManager neuralTts;
 
     private String pendingText = null;
     private String pendingLang = "vi-VN";
@@ -63,6 +64,7 @@ public class MainActivity extends Activity {
         setContentView(root);
 
         applySystemBarInsets();
+        neuralTts = new NeuralTtsManager(this);
         initTts();
         configureWebView();
 
@@ -144,7 +146,6 @@ public class MainActivity extends Activity {
                 ttsReady = true;
                 tts.setSpeechRate(0.95f);
                 tts.setPitch(1.0f);
-                verifyVoicePacks();
                 if (pendingText != null) {
                     String text = pendingText;
                     String lang = pendingLang;
@@ -157,66 +158,6 @@ public class MainActivity extends Activity {
         });
     }
 
-    private void verifyVoicePacks() {
-        boolean hasEn = isLocaleAvailable(Locale.US);
-        boolean hasZh = isLocaleAvailable(Locale.SIMPLIFIED_CHINESE);
-
-        if (hasEn && hasZh) {
-            getSharedPreferences("voice_setup", MODE_PRIVATE).edit().putBoolean("checked", true).apply();
-            return;
-        }
-
-        SharedPreferences prefs = getSharedPreferences("voice_setup", MODE_PRIVATE);
-        boolean alreadyPrompted = prefs.getBoolean("prompted", false);
-        if (!alreadyPrompted) {
-            prefs.edit().putBoolean("prompted", true).apply();
-            Toast.makeText(this, "Đang kiểm tra gói giọng Anh và Trung…", Toast.LENGTH_SHORT).show();
-            requestTtsDataInstall();
-        } else {
-            String missing = (!hasEn && !hasZh) ? "Anh và Trung" : (!hasEn ? "Anh" : "Trung");
-            Toast.makeText(this, "Thiếu gói giọng " + missing + ". Mở cài đặt TTS để tải.", Toast.LENGTH_LONG).show();
-        }
-    }
-
-    private boolean isLocaleAvailable(Locale locale) {
-        if (tts == null) return false;
-        int r = tts.isLanguageAvailable(locale);
-        return r >= TextToSpeech.LANG_AVAILABLE;
-    }
-
-    private void requestTtsDataInstall() {
-        try {
-            Intent checkIntent = new Intent(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA);
-            startActivityForResult(checkIntent, REQ_TTS_CHECK);
-        } catch (Exception e) {
-            openTtsInstall();
-        }
-    }
-
-    private void openTtsInstall() {
-        try {
-            Intent installIntent = new Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA);
-            startActivity(installIntent);
-        } catch (Exception e) {
-            try {
-                startActivity(new Intent("com.android.settings.TTS_SETTINGS"));
-            } catch (Exception ignored) {
-                Toast.makeText(this, "Hãy vào Cài đặt > Chuyển văn bản thành giọng nói để tải giọng Anh/Trung.", Toast.LENGTH_LONG).show();
-            }
-        }
-    }
-
-    @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQ_TTS_CHECK) {
-            if (resultCode != TextToSpeech.Engine.CHECK_VOICE_DATA_PASS) {
-                openTtsInstall();
-            } else {
-                verifyVoicePacks();
-            }
-        }
-    }
-
     private void injectNativeVoiceHook() {
         String js = "(function(){if(window.__apkTtsHook||!window.AndroidVoice)return;window.__apkTtsHook=true;var ss=window.speechSynthesis;if(!ss)return;var oldSpeak=ss.speak.bind(ss);ss.speak=function(u){try{AndroidVoice.speak(String(u.text||''),String(u.lang||'vi-VN'));if(u.onstart)u.onstart({type:'start'});setTimeout(function(){try{if(u.onend)u.onend({type:'end'});}catch(e){}},Math.max(900,String(u.text||'').length*60));}catch(e){oldSpeak(u);}};ss.cancel=function(){try{AndroidVoice.cancel();}catch(e){}};})();";
         webView.evaluateJavascript(js, null);
@@ -226,9 +167,9 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void speak(String text, String lang) { runOnUiThread(() -> speakNative(text, lang)); }
         @JavascriptInterface public void cancel() { runOnUiThread(() -> { if (tts != null) tts.stop(); }); }
         @JavascriptInterface public boolean isReady() { return ttsReady; }
-        @JavascriptInterface public boolean hasEnglish() { return ttsReady && isLocaleAvailable(Locale.US); }
-        @JavascriptInterface public boolean hasChinese() { return ttsReady && isLocaleAvailable(Locale.SIMPLIFIED_CHINESE); }
-        @JavascriptInterface public void installVoices() { runOnUiThread(() -> openTtsInstall()); }
+        @JavascriptInterface public boolean hasEnglish() { return true; }
+        @JavascriptInterface public boolean hasChinese() { return true; }
+        @JavascriptInterface public void installVoices() { }
     }
 
     private void speakNative(String text, String lang) {
@@ -240,20 +181,33 @@ public class MainActivity extends Activity {
             return;
         }
 
-        Locale locale = Locale.forLanguageTag("vi-VN");
         String l = lang == null ? "vi-VN" : lang.toLowerCase(Locale.ROOT);
-        if (l.startsWith("en")) locale = Locale.US;
-        else if (l.startsWith("zh")) locale = Locale.SIMPLIFIED_CHINESE;
 
-        int result = tts.setLanguage(locale);
-        if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-            pendingText = text;
-            pendingLang = lang;
-            Toast.makeText(this, "Thiếu dữ liệu giọng " + (l.startsWith("zh") ? "Trung" : l.startsWith("en") ? "Anh" : "Việt") + " — đang mở trình tải giọng.", Toast.LENGTH_SHORT).show();
-            openTtsInstall();
+        if (neuralTts != null && neuralTts.supports(l)) {
+            neuralTts.speak(text, l,
+                    () -> { },
+                    () -> runOnUiThread(() -> speakSystemFallback(text, l)));
             return;
         }
 
+        speakSystemFallback(text, l);
+    }
+
+    private void speakSystemFallback(String text, String lang) {
+        if (!ttsReady || tts == null) {
+            pendingText = text;
+            pendingLang = lang;
+            return;
+        }
+
+        Locale locale = Locale.forLanguageTag("vi-VN");
+        if (lang.startsWith("en")) locale = Locale.US;
+        else if (lang.startsWith("zh")) locale = Locale.SIMPLIFIED_CHINESE;
+
+        int result = tts.setLanguage(locale);
+        if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+            tts.setLanguage(Locale.getDefault());
+        }
         chooseBestVoice(locale);
         tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "teacher");
     }
@@ -345,6 +299,7 @@ public class MainActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        if (neuralTts != null) { neuralTts.release(); neuralTts = null; }
         if (tts != null) { tts.stop(); tts.shutdown(); tts = null; }
         if (webView != null) { webView.destroy(); webView = null; }
         super.onDestroy();
