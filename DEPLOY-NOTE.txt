@@ -1,0 +1,4 @@
+ANDROID PROJECT - KHONG DEPLOY LEN EDGEONE
+
+Project nay chi dung de build APK/AAB.
+Website EdgeOne phai dung goi V4.5_EDGEONE_SAFE_DEPLOY.zip rieng.

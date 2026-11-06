@@ -1,0 +1,226 @@
+{
+  "passed": 44,
+  "total": 44,
+  "results": [
+    {
+      "name": "grade5_math: dữ liệu hợp lệ",
+      "pass": true,
+      "detail": "total=96, bad=0, duplicateQuestions=0"
+    },
+    {
+      "name": "grade5_math: ngân hàng >= 90",
+      "pass": true,
+      "detail": "total=96"
+    },
+    {
+      "name": "grade5_viet: dữ liệu hợp lệ",
+      "pass": true,
+      "detail": "total=96, bad=0, duplicateQuestions=7"
+    },
+    {
+      "name": "grade5_viet: ngân hàng >= 90",
+      "pass": true,
+      "detail": "total=96"
+    },
+    {
+      "name": "grade5_eng: dữ liệu hợp lệ",
+      "pass": true,
+      "detail": "total=120, bad=0, duplicateQuestions=1"
+    },
+    {
+      "name": "grade5_eng: ngân hàng >= 90",
+      "pass": true,
+      "detail": "total=120"
+    },
+    {
+      "name": "CEFR A1: dữ liệu hợp lệ",
+      "pass": true,
+      "detail": "count=88, bad=0, kinds={\"vocab\":64,\"mcq\":24}"
+    },
+    {
+      "name": "CEFR A1: >= 80 hoạt động",
+      "pass": true,
+      "detail": "count=88"
+    },
+    {
+      "name": "CEFR A2: dữ liệu hợp lệ",
+      "pass": true,
+      "detail": "count=88, bad=0, kinds={\"vocab\":64,\"mcq\":24}"
+    },
+    {
+      "name": "CEFR A2: >= 80 hoạt động",
+      "pass": true,
+      "detail": "count=88"
+    },
+    {
+      "name": "CEFR B1: dữ liệu hợp lệ",
+      "pass": true,
+      "detail": "count=88, bad=0, kinds={\"vocab\":64,\"mcq\":24}"
+    },
+    {
+      "name": "CEFR B1: >= 80 hoạt động",
+      "pass": true,
+      "detail": "count=88"
+    },
+    {
+      "name": "CEFR B2: dữ liệu hợp lệ",
+      "pass": true,
+      "detail": "count=88, bad=0, kinds={\"vocab\":64,\"mcq\":24}"
+    },
+    {
+      "name": "CEFR B2: >= 80 hoạt động",
+      "pass": true,
+      "detail": "count=88"
+    },
+    {
+      "name": "CEFR C1: dữ liệu hợp lệ",
+      "pass": true,
+      "detail": "count=88, bad=0, kinds={\"vocab\":64,\"mcq\":24}"
+    },
+    {
+      "name": "CEFR C1: >= 80 hoạt động",
+      "pass": true,
+      "detail": "count=88"
+    },
+    {
+      "name": "HSK 1: dữ liệu hợp lệ",
+      "pass": true,
+      "detail": "count=75, bad=0"
+    },
+    {
+      "name": "HSK 1: >=60",
+      "pass": true,
+      "detail": "count=75"
+    },
+    {
+      "name": "HSK 2: dữ liệu hợp lệ",
+      "pass": true,
+      "detail": "count=75, bad=0"
+    },
+    {
+      "name": "HSK 2: >=60",
+      "pass": true,
+      "detail": "count=75"
+    },
+    {
+      "name": "HSK 3: dữ liệu hợp lệ",
+      "pass": true,
+      "detail": "count=75, bad=0"
+    },
+    {
+      "name": "HSK 3: >=60",
+      "pass": true,
+      "detail": "count=75"
+    },
+    {
+      "name": "HSK 4: dữ liệu hợp lệ",
+      "pass": true,
+      "detail": "count=75, bad=0"
+    },
+    {
+      "name": "HSK 4: >=60",
+      "pass": true,
+      "detail": "count=75"
+    },
+    {
+      "name": "HSK 5: dữ liệu hợp lệ",
+      "pass": true,
+      "detail": "count=75, bad=0"
+    },
+    {
+      "name": "HSK 5: >=60",
+      "pass": true,
+      "detail": "count=75"
+    },
+    {
+      "name": "HSK 6: dữ liệu hợp lệ",
+      "pass": true,
+      "detail": "count=75, bad=0"
+    },
+    {
+      "name": "HSK 6: >=60",
+      "pass": true,
+      "detail": "count=75"
+    },
+    {
+      "name": "HSK tổng >=400",
+      "pass": true,
+      "detail": "total=450"
+    },
+    {
+      "name": "Syntax app.js",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Syntax audit-logic.js",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Syntax cefr-english-bank.js",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Syntax firebase-config.js",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Syntax firebase-multiplayer.js",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Syntax grade5-bank.js",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Syntax hsk-pro-data.js",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Syntax hsk-pro.js",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Syntax learning-hub.js",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Syntax state-smoke-test.js",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Syntax voice-manager.js",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "State normalizeLearningSub tồn tại",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Firebase switchTopic render UI",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Firebase mode gọi setAppMode",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Không còn default CEFR comm trong Firebase",
+      "pass": true,
+      "detail": ""
+    }
+  ]
+}
