@@ -14,9 +14,6 @@ import com.k2fsa.sherpa.onnx.OfflineTtsKokoroModelConfig;
 import com.k2fsa.sherpa.onnx.OfflineTtsModelConfig;
 import com.k2fsa.sherpa.onnx.OfflineTtsVitsModelConfig;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -53,7 +50,7 @@ public final class NeuralTtsManager {
                 GenerationConfig gc = new GenerationConfig();
                 gc.setSpeed(1.0f);
                 gc.setSilenceScale(0.18f);
-                gc.setSid(lang != null && lang.toLowerCase().startsWith("zh") ? 3 : 0);
+                gc.setSid(lang != null && lang.toLowerCase().startsWith("zh") ? 47 : 0);
 
                 GeneratedAudio audio = engine.generateWithConfigAndCallback(text, gc, samples -> {
                     return token == generation ? 1 : 0;
@@ -77,7 +74,7 @@ public final class NeuralTtsManager {
         OfflineTtsVitsModelConfig vits = OfflineTtsVitsModelConfig.builder()
                 .setModel("tts/en/en_US-lessac-medium.onnx")
                 .setTokens("tts/en/tokens.txt")
-                .setDataDir("tts/zh/espeak-ng-data")
+                .setDataDir("tts/en/espeak-ng-data")
                 .build();
         OfflineTtsModelConfig model = OfflineTtsModelConfig.builder()
                 .setVits(vits).setNumThreads(2).setDebug(false).build();
@@ -93,7 +90,7 @@ public final class NeuralTtsManager {
                 .setVoices("tts/zh/voices.bin")
                 .setTokens("tts/zh/tokens.txt")
                 .setLexicon("tts/zh/lexicon-us-en.txt,tts/zh/lexicon-zh.txt")
-                .setDataDir("tts/en/espeak-ng-data")
+                .setDataDir("tts/zh/espeak-ng-data")
                 .build();
         OfflineTtsModelConfig model = OfflineTtsModelConfig.builder()
                 .setKokoro(kokoro).setNumThreads(2).setDebug(false).build();
@@ -148,35 +145,6 @@ public final class NeuralTtsManager {
             try { t.flush(); } catch (Exception ignored) {}
             try { t.stop(); } catch (Exception ignored) {}
             try { t.release(); } catch (Exception ignored) {}
-        }
-    }
-
-    private String copyAssetDirToFiles(String assetDir) throws Exception {
-        File outDir = new File(context.getFilesDir(), assetDir);
-        if (outDir.exists() && new File(outDir, ".ready").exists()) {
-            return outDir.getAbsolutePath();
-        }
-        copyRecursive(assetDir, outDir);
-        outDir.mkdirs();
-        new File(outDir, ".ready").createNewFile();
-        return outDir.getAbsolutePath();
-    }
-
-    private void copyRecursive(String assetPath, File out) throws Exception {
-        String[] children = context.getAssets().list(assetPath);
-        if (children == null || children.length == 0) {
-            out.getParentFile().mkdirs();
-            try (InputStream in = context.getAssets().open(assetPath);
-                 FileOutputStream fos = new FileOutputStream(out)) {
-                byte[] buf = new byte[32768];
-                int n;
-                while ((n = in.read(buf)) > 0) fos.write(buf, 0, n);
-            }
-            return;
-        }
-        out.mkdirs();
-        for (String child : children) {
-            copyRecursive(assetPath + "/" + child, new File(out, child));
         }
     }
 
