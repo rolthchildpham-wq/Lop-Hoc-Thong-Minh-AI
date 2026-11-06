@@ -1,0 +1,14 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'vn.aihuedan.learn'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'vn.aihuedan.learn'
+        minSdk 26
+        targetSdk 35
+        versionCode 48
+        versionName '4.8'
+    }
+    buildTypes { release { minifyEnabled false } }
+}
