@@ -1,17 +1,25 @@
-name: Build Android Live APK
+name: Build Android Offline Neural APK
+
 on:
   workflow_dispatch:
   push:
     branches: [ main ]
+
 jobs:
   build:
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v5
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
+
       - name: Prepare Android SDK
         shell: bash
         run: |
@@ -19,16 +27,70 @@ jobs:
           if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="$(command -v sdkmanager)"; fi
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10.2'
-      - run: gradle :app:assembleDebug --stacktrace
+
+      - name: Download sherpa-onnx Android runtime
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p app/libs
+          curl -L --retry 3             https://github.com/k2-fsa/sherpa-onnx/releases/download/v2.0.1/sherpa-onnx-2.0.1.aar             -o app/libs/sherpa-onnx-2.0.1.aar
+          test -s app/libs/sherpa-onnx-2.0.1.aar
+          ls -lh app/libs/sherpa-onnx-2.0.1.aar
+
+      - name: Bundle English neural model
+        shell: bash
+        run: |
+          set -euxo pipefail
+          rm -rf /tmp/en-model app/src/main/assets/tts/en
+          mkdir -p /tmp/en-model app/src/main/assets/tts/en
+          curl -L --retry 3             https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-lessac-medium.tar.bz2             -o /tmp/en.tar.bz2
+          tar -xjf /tmp/en.tar.bz2 -C /tmp/en-model
+          cp -a /tmp/en-model/vits-piper-en_US-lessac-medium/. app/src/main/assets/tts/en/
+          rm -rf app/src/main/assets/tts/en/test_wavs app/src/main/assets/tts/en/*.wav || true
+          test -f app/src/main/assets/tts/en/en_US-lessac-medium.onnx
+          test -f app/src/main/assets/tts/en/tokens.txt
+          ls -lh app/src/main/assets/tts/en/en_US-lessac-medium.onnx
+
+      - name: Bundle Chinese neural model
+        shell: bash
+        run: |
+          set -euxo pipefail
+          rm -rf /tmp/zh-model app/src/main/assets/tts/zh
+          mkdir -p /tmp/zh-model app/src/main/assets/tts/zh
+          curl -L --retry 3             https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_0.tar.bz2             -o /tmp/zh.tar.bz2
+          tar -xjf /tmp/zh.tar.bz2 -C /tmp/zh-model
+          cp -a /tmp/zh-model/kokoro-multi-lang-v1_0/. app/src/main/assets/tts/zh/
+          rm -rf app/src/main/assets/tts/zh/test_wavs app/src/main/assets/tts/zh/*.wav || true
+          test -f app/src/main/assets/tts/zh/model.onnx
+          test -f app/src/main/assets/tts/zh/voices.bin
+          test -f app/src/main/assets/tts/zh/tokens.txt
+          test -f app/src/main/assets/tts/zh/lexicon-zh.txt
+          ls -lh app/src/main/assets/tts/zh/model.onnx app/src/main/assets/tts/zh/voices.bin
+
+      - name: Show bundled voice size
+        run: |
+          du -sh app/src/main/assets/tts
+          du -sh app/src/main/assets/tts/en app/src/main/assets/tts/zh
+
+      - name: Build V5.0 APK
+        run: gradle :app:assembleDebug --stacktrace
+
       - name: Verify APK
         run: |
-          test -f app/build/outputs/apk/debug/app-debug.apk
-          unzip -t app/build/outputs/apk/debug/app-debug.apk >/dev/null
-      - uses: actions/upload-artifact@v4
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -f "$APK"
+          unzip -t "$APK" >/dev/null
+          ls -lh "$APK"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
-          name: Lop-Hoc-Thong-Minh-AI-Live-V4.9-APK
+          name: Lop-Hoc-Thong-Minh-AI-V5.0-OFFLINE-NEURAL-APK
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+          compression-level: 0
