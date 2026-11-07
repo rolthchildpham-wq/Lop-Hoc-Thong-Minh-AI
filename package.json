@@ -1,0 +1,17 @@
+{
+  "name": "lop-hoc-thong-minh-ai",
+  "version": "5.3.0",
+  "private": true,
+  "description": "Lop Hoc Thong Minh AI - Android wrapper build with Capacitor",
+  "scripts": {
+    "build": "echo Static web app - no build step required",
+    "android:sync": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "6.2.0",
+    "@capacitor/core": "6.2.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "6.2.0"
+  }
+}

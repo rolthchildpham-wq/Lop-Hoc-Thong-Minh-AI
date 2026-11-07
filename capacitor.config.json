@@ -1,0 +1,12 @@
+{
+  "appId": "vn.topkey.lophoc.thongminhai",
+  "appName": "Lớp Học Thông Minh AI",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}
