@@ -1,0 +1,3 @@
+-keep class androidx.room.** { *; }
+-keep class com.trungtalk.data.db.** { *; }
+-keepattributes *Annotation*
