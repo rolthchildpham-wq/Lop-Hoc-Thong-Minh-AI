@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.trungtalk.data.db.*
+import com.trungtalk.ai.BackendClient
 import kotlinx.coroutines.launch
 
 @Composable
@@ -44,21 +45,33 @@ fun GrammarScreen() {
 
 @Composable
 fun RoleplayScreen() {
+ val ctx=LocalContext.current
+ val scope=rememberCoroutineScope()
  val roles=listOf(
-  "Báo cáo tiến độ" to "你是员工，向主管报告完成情况、困难和预计完成时间。",
-  "Trao đổi đơn hàng" to "你是工厂业务员。确认5000件产品的库存、交货期、价格和包装。",
-  "Phỏng vấn xin việc" to "你是广东公司的应聘者。介绍自己、工作经验、优势和期望工资。",
-  "Khách hàng phàn nàn" to "客户收到1000件产品，其中50件有问题。请道歉并提出解决方案。",
-  "Họp giao ban" to "你是部门主管。主持每周会议，请同事汇报工作和下周计划。"
+  "Báo cáo tiến độ" to "Bạn là quản lý Trung Quốc. Hỏi nhân viên về tiến độ báo cáo, khó khăn và thời hạn.",
+  "Trao đổi đơn hàng" to "Bạn là đồng nghiệp phòng kinh doanh. Trao đổi đơn 5000 sản phẩm, tồn kho, giá và giao hàng.",
+  "Phỏng vấn xin việc" to "Bạn là nhà tuyển dụng công ty Quảng Đông. Phỏng vấn ứng viên người Việt bằng tiếng Trung.",
+  "Khách hàng phàn nàn" to "Bạn là khách hàng nhận 1000 sản phẩm có 50 sản phẩm lỗi. Phàn nàn và yêu cầu xử lý.",
+  "Họp giao ban" to "Bạn là trưởng phòng, chủ trì họp tuần và hỏi báo cáo công việc."
  )
  var selected by remember { mutableIntStateOf(0) }
  var answer by remember { mutableStateOf("") }
+ var reply by remember { mutableStateOf("") }
+ var error by remember { mutableStateOf("") }
+ var busy by remember { mutableStateOf(false) }
  Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
   Text("Roleplay giao tiếp công việc",style=MaterialTheme.typography.headlineSmall)
-  roles.forEachIndexed{i,item-> FilterChip(selected==i,{selected=i;answer=""},label={Text(item.first)})}
+  roles.forEachIndexed{i,item-> FilterChip(selected==i,{selected=i;answer="";reply="";error=""},label={Text(item.first)})}
   Card(Modifier.fillMaxWidth()){Column(Modifier.padding(16.dp)){Text("Tình huống",style=MaterialTheme.typography.titleMedium);Text(roles[selected].second)}}
-  OutlinedTextField(answer,{answer=it},label={Text("Câu trả lời bằng tiếng Trung")},modifier=Modifier.fillMaxWidth(),minLines=4)
-  Text("Bản hội thoại AI nhiều lượt và chấm điểm cần triển khai Worker Gemini và cấu hình URL máy chủ.")
+  OutlinedTextField(answer,{answer=it},label={Text("Trả lời bằng tiếng Trung")},modifier=Modifier.fillMaxWidth(),minLines=3)
+  Button(enabled=answer.isNotBlank()&&!busy,onClick={
+   val prompt="Tình huống: ${roles[selected].second}\nHọc viên trả lời: $answer\nHãy phản hồi như nhân vật trong tình huống bằng tiếng Trung đơn giản, sau đó giải thích ngắn bằng tiếng Việt."
+   busy=true;error="";reply=""
+   scope.launch { try { reply=BackendClient(ctx).chat(emptyList(),prompt) } catch(e:Exception){error=e.message?: "Không kết nối được AI."} finally {busy=false} }
+  },modifier=Modifier.fillMaxWidth()){Text(if(busy)"AI đang phản hồi…" else "Gửi cho AI đóng vai")}
+  if(error.isNotBlank()) Text(error,color=MaterialTheme.colorScheme.error)
+  if(reply.isNotBlank()) Card(Modifier.fillMaxWidth()){Column(Modifier.padding(16.dp)){Text("Phản hồi nhân vật",style=MaterialTheme.typography.titleMedium);Text(reply)}}
+  Text("AI roleplay yêu cầu Worker đã deploy và BACKEND_URL được cấu hình.")
  }
 }
 
