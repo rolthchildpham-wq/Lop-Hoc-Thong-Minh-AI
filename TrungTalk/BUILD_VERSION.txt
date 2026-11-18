@@ -1,0 +1,5 @@
+TrungTalk Android V1.0.0
+Package: com.trungtalk
+Minimum Android: 7.0 (API 24)
+Target SDK: 34
+Build: GitHub Actions debug APK
