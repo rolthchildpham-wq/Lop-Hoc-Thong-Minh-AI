@@ -283,7 +283,6 @@ private fun FlashcardScreen() {
     }
 }
 
-@Composable
 private fun transcriptSimilarity(expected: String, actual: String): Int {
     val a = expected.filterNot { it.isWhitespace() }
     val b = actual.filterNot { it.isWhitespace() }
