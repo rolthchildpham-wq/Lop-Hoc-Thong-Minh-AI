@@ -31,7 +31,7 @@ jobs:
         with:
           gradle-version: '8.7'
       - name: Build release APK
-        run: gradle -p TrungTalk :app:assembleRelease --stacktrace
+        run: gradle -p TrungTalk :app:assembleRelease --stacktrace -PBACKEND_URL="${{ vars.BACKEND_URL }}"
       - name: Sign release APK (requires permanent signing secrets)
         if: env.RELEASE_SIGNING_CONFIGURED == 'true'
         env:
