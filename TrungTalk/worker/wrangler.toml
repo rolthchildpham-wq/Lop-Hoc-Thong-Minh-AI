@@ -1,8 +1,10 @@
 name = "trungtalk-proxy"
 main = "src/index.js"
-compatibility_date = "2025-01-01"
+compatibility_date = "2026-11-19"
+workers_dev = true
 
-# Optional: create KV with "npx wrangler kv namespace create RATE_LIMIT"
+# Gemini key is stored as a Worker secret, never commit it here.
+# Optional rate limiting KV can be enabled later:
 # [[kv_namespaces]]
 # binding = "RATE_LIMIT"
 # id = "YOUR_KV_NAMESPACE_ID"
