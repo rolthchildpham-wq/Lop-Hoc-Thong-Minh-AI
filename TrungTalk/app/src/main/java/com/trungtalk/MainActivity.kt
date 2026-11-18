@@ -334,12 +334,34 @@ private fun StatsScreen() {
 
 @Composable
 private fun AiScreen() {
-    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Trợ lý AI TrungTalk", style = MaterialTheme.typography.headlineSmall)
-        Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Chờ cấu hình Gemini qua Cloudflare Worker", style = MaterialTheme.typography.titleMedium)
-            Text("Theo tài liệu TrungTalk v5.0, Worker giữ API key ở máy chủ, giới hạn tần suất và cache phản hồi. Chat AI, chấm ngữ pháp và roleplay chưa bật trong APK đầu tiên vì chưa có Worker URL và secrets.")
-            Text("Không đưa API key trực tiếp vào APK. Khi cấu hình máy chủ, các chức năng AI sẽ được tích hợp ở bản cập nhật tiếp theo.", style = MaterialTheme.typography.bodySmall)
-        } }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val history = remember { mutableStateListOf<Pair<String,String>>() }
+    var input by rememberSaveable { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf("") }
+    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("Gia sư AI TrungTalk", style = MaterialTheme.typography.headlineSmall)
+        Text("Hỏi bằng tiếng Việt hoặc tiếng Trung. Cần triển khai Worker và đặt BACKEND_URL khi build.")
+        androidx.compose.foundation.lazy.LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(history) { item ->
+                Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) {
+                    Text(if(item.first=="user") "Bạn" else "TrungTalk AI", style=MaterialTheme.typography.labelMedium, color=MaterialTheme.colorScheme.primary)
+                    Text(item.second)
+                } }
+            }
+        }
+        if(error.isNotBlank()) Text(error,color=MaterialTheme.colorScheme.error)
+        OutlinedTextField(input,{input=it},label={Text("Nhập câu hỏi…")},modifier=Modifier.fillMaxWidth())
+        Button(enabled=input.isNotBlank() && !busy,onClick={
+            val message=input.trim(); input=""; error=""; history.add("user" to message); busy=true
+            scope.launch {
+                try {
+                    val answer=com.trungtalk.ai.BackendClient(context).chat(history.dropLast(1).toList(),message)
+                    history.add("assistant" to answer)
+                } catch(e:Exception) { error=e.message ?: "Không kết nối được AI." }
+                finally { busy=false }
+            }
+        },modifier=Modifier.fillMaxWidth()) { Text(if(busy) "Đang trả lời…" else "Gửi câu hỏi") }
     }
 }
