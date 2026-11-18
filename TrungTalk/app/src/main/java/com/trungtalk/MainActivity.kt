@@ -15,6 +15,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -81,16 +83,18 @@ private object Curriculum {
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { MaterialTheme(colorScheme = lightColorScheme(primary = androidx.compose.ui.graphics.Color(0xFFD32F2F), secondary = androidx.compose.ui.graphics.Color(0xFFF57C00))) { TrungTalkApp() } }
+        setContent { TrungTalkApp() }
     }
 }
 
 @Composable
 private fun TrungTalkApp() {
+    var darkMode by rememberSaveable { mutableStateOf(false) }
     val nav = rememberNavController()
     val entry by nav.currentBackStackEntryAsState()
     val route = entry?.destination?.route.orEmpty()
     val tabs = setOf("home","flashcards","speaking","stats","ai")
+    MaterialTheme(colorScheme = if (darkMode) darkColorScheme(primary = Color(0xFFFF8A65), secondary = Color(0xFFFFB74D)) else lightColorScheme(primary = Color(0xFFD32F2F), secondary = Color(0xFFF57C00))) {
     Scaffold(bottomBar = {
         if (route in tabs) NavigationBar {
             listOf(Triple("home","⌂","Học"),Triple("flashcards","▤","Thẻ"),Triple("speaking","◉","Nói"),Triple("stats","▥","Tiến độ"),Triple("ai","✦","AI")).forEach { item ->
@@ -104,12 +108,30 @@ private fun TrungTalkApp() {
             composable("speaking") { SpeakingScreen() }
             composable("stats") { StatsScreen() }
             composable("ai") { AiScreen() }
+            composable("grammar") { GrammarScreen() }
+            composable("roleplay") { RoleplayScreen() }
+            composable("hsk") { HskScreen() }
+            composable("gamification") { GamificationScreen() }
+            composable("srs") { SrsScreen() }
+            composable("settings") { SettingsScreen(darkMode) { darkMode = it } }
             composable("principles") { PrinciplesScreen(nav) }
             composable("phase/{num}", arguments = listOf(navArgument("num") { type = NavType.IntType })) { PhaseScreen(nav, it.arguments?.getInt("num") ?: 1) }
             composable("lesson/{phase}/{id}", arguments = listOf(navArgument("phase") { type = NavType.IntType }, navArgument("id") { type = NavType.StringType })) {
                 LessonScreen(nav, it.arguments?.getInt("phase") ?: 1, it.arguments?.getString("id").orEmpty())
             }
         }
+    }
+    }
+}
+
+@Composable
+private fun SettingsScreen(dark: Boolean, onDarkChange: (Boolean) -> Unit) {
+    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text("Cài đặt TrungTalk", style = MaterialTheme.typography.headlineSmall)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Giao diện tối"); Switch(checked = dark, onCheckedChange = onDarkChange) }
+        Text("Ngôn ngữ giao diện: Tiếng Việt (bản hiện tại). Bản song ngữ Việt/Anh chưa hoàn tất.")
+        Text("AI: cần Worker URL và GEMINI_API_KEY được cấu hình ở máy chủ.")
+        Text("Phiên bản 2.0.0 · com.trungtalk")
     }
 }
 
@@ -137,6 +159,8 @@ private fun HomeScreen(nav: NavController) {
                 QuickTile("✦","AI",Modifier.weight(1f)) { nav.navigate("ai") }
             }
         }
+        item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { QuickTile("🧠","Ngữ pháp",Modifier.weight(1f)) { nav.navigate("grammar") }; QuickTile("🎭","Đóng vai",Modifier.weight(1f)) { nav.navigate("roleplay") }; QuickTile("📝","HSK",Modifier.weight(1f)) { nav.navigate("hsk") } } }
+        item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { QuickTile("🏆","Thành tích",Modifier.weight(1f)) { nav.navigate("gamification") }; QuickTile("🔁","Ôn SRS",Modifier.weight(1f)) { nav.navigate("srs") }; QuickTile("⚙️","Cài đặt",Modifier.weight(1f)) { nav.navigate("settings") } } }
         item { OutlinedCard(onClick = { nav.navigate("principles") }, modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp)) { Text("📌 3 nguyên tắc vàng", style = MaterialTheme.typography.titleMedium); Text("30% học – 70% thực hành nghe và nói") } } }
         item { Text("Lộ trình 5 giai đoạn", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
         items(Curriculum.phases) { phase ->
