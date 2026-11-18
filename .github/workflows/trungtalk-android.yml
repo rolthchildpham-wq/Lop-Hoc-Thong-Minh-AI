@@ -11,6 +11,8 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-24.04
+    env:
+      RELEASE_SIGNING_CONFIGURED: ${{ secrets.RELEASE_KEYSTORE_BASE64 != '' && secrets.RELEASE_STORE_PASSWORD != '' && secrets.RELEASE_KEY_ALIAS != '' && secrets.RELEASE_KEY_PASSWORD != '' }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -31,7 +33,7 @@ jobs:
       - name: Build release APK
         run: gradle -p TrungTalk :app:assembleRelease --stacktrace
       - name: Sign release APK (requires permanent signing secrets)
-        if: ${{ secrets.RELEASE_KEYSTORE_BASE64 != '' }}
+        if: env.RELEASE_SIGNING_CONFIGURED == 'true'
         env:
           KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
           STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
@@ -53,7 +55,7 @@ jobs:
           if-no-files-found: error
           retention-days: 90
       - name: Verify unsigned release output
-        if: ${{ secrets.RELEASE_KEYSTORE_BASE64 == '' }}
+        if: env.RELEASE_SIGNING_CONFIGURED != 'true'
         run: |
           APK=TrungTalk/app/build/outputs/apk/release/app-release-unsigned.apk
           test -s "$APK"
