@@ -1,4 +1,4 @@
-name: TrungTalk Android Release
+name: TrungTalk Android Debug APK
 on:
   push:
     branches: [trungtalk-v1]
@@ -12,10 +12,8 @@ concurrency:
   group: trungtalk-android-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  release:
+  debug-apk:
     runs-on: ubuntu-24.04
-    env:
-      RELEASE_SIGNING_CONFIGURED: ${{ secrets.RELEASE_KEYSTORE_BASE64 != '' && secrets.RELEASE_STORE_PASSWORD != '' && secrets.RELEASE_KEY_ALIAS != '' && secrets.RELEASE_KEY_PASSWORD != '' }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -33,42 +31,19 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
-      - name: Build release APK
-        run: gradle -p TrungTalk :app:assembleRelease --stacktrace -PBACKEND_URL="${{ vars.BACKEND_URL }}"
-      - name: Sign release APK (requires permanent signing secrets)
-        if: env.RELEASE_SIGNING_CONFIGURED == 'true'
-        env:
-          KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
-          STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+      - name: Build installable Debug APK
+        run: gradle -p TrungTalk :app:assembleDebug --stacktrace -PBACKEND_URL="${{ vars.BACKEND_URL }}"
+      - name: Verify APK package and signature
         run: |
-          mkdir -p signing
-          echo "$KEYSTORE_B64" | base64 -d > signing/release.jks
-          "$ANDROID_HOME/build-tools/34.0.0/zipalign" -f -p 4 TrungTalk/app/build/outputs/apk/release/app-release-unsigned.apk signing/aligned.apk
-          "$ANDROID_HOME/build-tools/34.0.0/apksigner" sign --ks signing/release.jks --ks-pass env:STORE_PASSWORD --key-pass env:KEY_PASSWORD --ks-key-alias "$KEY_ALIAS" --out signing/TrungTalk-2.0.0-release.apk signing/aligned.apk
-          "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose signing/TrungTalk-2.0.0-release.apk
-          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging signing/TrungTalk-2.0.0-release.apk | grep "package: name='com.trungtalk'"
-      - name: Upload signed APK
-        if: env.RELEASE_SIGNING_CONFIGURED == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: TrungTalk-2.0.0-SIGNED-RELEASE
-          path: signing/TrungTalk-2.0.0-release.apk
-          if-no-files-found: error
-          retention-days: 90
-      - name: Verify unsigned release output
-        if: env.RELEASE_SIGNING_CONFIGURED != 'true'
-        run: |
-          APK=TrungTalk/app/build/outputs/apk/release/app-release-unsigned.apk
+          APK=TrungTalk/app/build/outputs/apk/debug/app-debug.apk
           test -s "$APK"
           "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | grep "package: name='com.trungtalk'"
+          "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose "$APK"
           ls -lh "$APK"
-      - name: Upload unsigned release APK (signing secrets not set)
-        if: env.RELEASE_SIGNING_CONFIGURED != 'true'
+      - name: Upload installable Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: TrungTalk-2.0.0-RELEASE-UNSIGNED
-          path: TrungTalk/app/build/outputs/apk/release/app-release-unsigned.apk
+          name: TrungTalk-Android-DEBUG-APK
+          path: TrungTalk/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
