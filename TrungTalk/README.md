@@ -28,3 +28,22 @@ Do not put API keys in source code or chat.
 `gradle -p TrungTalk :app:assembleRelease`
 
 For a signed production APK, configure GitHub Actions secrets: RELEASE_KEYSTORE_BASE64, RELEASE_STORE_PASSWORD, RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD. Use one permanent keystore and preserve it for future updates.
+
+## Deploy Cloudflare AI Worker and build a connected APK
+
+The repository includes `.github/workflows/trungtalk-cloudflare-deploy.yml`. It deploys `TrungTalk/worker` to Cloudflare Workers, stores the Gemini key as a Worker secret, checks `/health`, then builds an installable Debug APK with the Worker URL compiled into `BuildConfig.BACKEND_URL`.
+
+Before running the workflow, configure these GitHub repository settings:
+
+**Actions secrets**
+- `CLOUDFLARE_API_TOKEN`: Cloudflare API token with permission to edit Workers Scripts for the target account.
+- `GEMINI_API_KEY`: Gemini API key. Keep this secret; never commit it or paste it into chat.
+
+**Actions variable**
+- `CLOUDFLARE_ACCOUNT_ID`: Account ID shown in the Cloudflare dashboard.
+
+Then open GitHub → Actions → **Deploy TrungTalk AI Worker and Build APK** → Run workflow. The run summary prints the Worker URL and health-check URL. The APK is published as artifact `TrungTalk-Android-AI-DEBUG-APK`.
+
+The Worker is named `trungtalk-proxy` and uses the `workers.dev` subdomain. Enable workers.dev for the account if deployment reports that the subdomain is unavailable. The Gemini key is installed with `wrangler secret put`; it is not embedded in Android.
+
+This workflow requires the repository owner to add the three settings above. ChatGPT cannot read or create Cloudflare/GitHub secrets on the owner's behalf.
