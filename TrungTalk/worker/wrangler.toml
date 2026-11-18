@@ -1,0 +1,8 @@
+name = "trungtalk-proxy"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+# Optional: create KV with "npx wrangler kv namespace create RATE_LIMIT"
+# [[kv_namespaces]]
+# binding = "RATE_LIMIT"
+# id = "YOUR_KV_NAMESPACE_ID"
