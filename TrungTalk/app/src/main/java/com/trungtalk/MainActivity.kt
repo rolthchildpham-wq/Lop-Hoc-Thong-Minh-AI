@@ -260,6 +260,7 @@ private fun FlashcardScreen() {
     var retry by rememberSaveable { mutableIntStateOf(0) }
     val word = words[index % words.size]
     val context = LocalContext.current
+    LaunchedEffect(Unit) { val srs = com.trungtalk.data.db.TrungTalkDatabase.get(context).srsDao(); words.forEach { srs.save(com.trungtalk.data.db.SrsCard(cardId = it.hanzi)) } }
     var tts by remember { mutableStateOf<TextToSpeech?>(null) }
     var ready by remember { mutableStateOf(false) }
     DisposableEffect(Unit) {
@@ -283,8 +284,24 @@ private fun FlashcardScreen() {
 }
 
 @Composable
+private fun transcriptSimilarity(expected: String, actual: String): Int {
+    val a = expected.filterNot { it.isWhitespace() }
+    val b = actual.filterNot { it.isWhitespace() }
+    if (a.isEmpty() || b.isEmpty()) return 0
+    val dp = Array(a.length + 1) { IntArray(b.length + 1) }
+    for (i in 0..a.length) dp[i][0] = i
+    for (j in 0..b.length) dp[0][j] = j
+    for (i in 1..a.length) for (j in 1..b.length) {
+        val cost = if (a[i-1] == b[j-1]) 0 else 1
+        dp[i][j] = minOf(dp[i-1][j]+1, dp[i][j-1]+1, dp[i-1][j-1]+cost)
+    }
+    return ((1f - dp[a.length][b.length].toFloat()/maxOf(a.length,b.length))*100).toInt().coerceIn(0,100)
+}
+
+@Composable
 private fun SpeakingScreen() {
     var transcript by rememberSaveable { mutableStateOf("") }
+    var target by rememberSaveable { mutableStateOf("你好，我叫……。我在工厂工作。") }
     var message by rememberSaveable { mutableStateOf("") }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         transcript = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull().orEmpty()
@@ -292,7 +309,7 @@ private fun SpeakingScreen() {
     }
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text("Luyện nói tiếng Trung", style = MaterialTheme.typography.headlineSmall)
-        Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp)) { Text("你好，我叫……。我在工厂工作。", style = MaterialTheme.typography.headlineSmall); Text("Nǐ hǎo, wǒ jiào… Wǒ zài gōngchǎng gōngzuò.") } }
+        OutlinedTextField(target,{target=it},label={Text("Câu mẫu cần luyện")},modifier=Modifier.fillMaxWidth(),minLines=2)
         Button(onClick = {
             message = ""
             val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
@@ -304,9 +321,14 @@ private fun SpeakingScreen() {
         }, modifier = Modifier.fillMaxWidth()) { Text("🎙️ Bắt đầu nhận dạng giọng nói") }
         if (message.isNotBlank()) Text(message, color = MaterialTheme.colorScheme.error)
         if (transcript.isNotBlank()) {
+            val score = transcriptSimilarity(target,transcript)
             Text("Kết quả nhận dạng", style = MaterialTheme.typography.titleMedium)
-            Card(Modifier.fillMaxWidth()) { Text(transcript, Modifier.padding(16.dp), style = MaterialTheme.typography.headlineSmall) }
-            Text("Đây là bản nhận dạng lời nói của thiết bị, chưa phải điểm chấm phát âm chuyên sâu.", style = MaterialTheme.typography.bodySmall)
+            Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp)) {
+                Text(transcript, style = MaterialTheme.typography.headlineSmall)
+                Text("Độ khớp văn bản tham khảo: $score/100",style=MaterialTheme.typography.titleLarge,color=MaterialTheme.colorScheme.primary)
+                LinearProgressIndicator(progress=score/100f,modifier=Modifier.fillMaxWidth())
+            } }
+            Text("Điểm này chỉ so sánh văn bản nhận dạng với câu mẫu, không đo thanh điệu, âm vị hoặc chất lượng âm thanh. Muốn chấm phát âm chuyên sâu cần Azure Speech Pronunciation Assessment.", style = MaterialTheme.typography.bodySmall)
         }
     }
 }
