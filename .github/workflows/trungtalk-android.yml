@@ -47,7 +47,7 @@ jobs:
           "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose signing/TrungTalk-2.0.0-release.apk
           "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging signing/TrungTalk-2.0.0-release.apk | grep "package: name='com.trungtalk'"
       - name: Upload signed APK
-        if: ${{ secrets.RELEASE_KEYSTORE_BASE64 != '' }}
+        if: env.RELEASE_SIGNING_CONFIGURED == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: TrungTalk-2.0.0-SIGNED-RELEASE
@@ -62,7 +62,7 @@ jobs:
           "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | grep "package: name='com.trungtalk'"
           ls -lh "$APK"
       - name: Upload unsigned release APK (signing secrets not set)
-        if: ${{ secrets.RELEASE_KEYSTORE_BASE64 == '' }}
+        if: env.RELEASE_SIGNING_CONFIGURED != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: TrungTalk-2.0.0-RELEASE-UNSIGNED
