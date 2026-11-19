@@ -274,8 +274,9 @@ private val words = listOf(
 private fun FlashcardScreen() {
  var index by rememberSaveable { mutableIntStateOf(0) }
  var show by rememberSaveable { mutableStateOf(false) }
- var mastered by rememberSaveable { mutableIntStateOf(0) }
- var again by rememberSaveable { mutableIntStateOf(0) }
+ val reviewPrefs = remember { context.applicationContext.getSharedPreferences("trungtalk_flashcard_progress", android.content.Context.MODE_PRIVATE) }
+ var mastered by rememberSaveable { mutableIntStateOf(reviewPrefs.getInt("mastered",0)) }
+ var again by rememberSaveable { mutableIntStateOf(reviewPrefs.getInt("again",0)) }
  var speed by rememberSaveable { mutableFloatStateOf(1f) }
  var topic by rememberSaveable { mutableStateOf("Giao tiếp công việc và nhà máy") }
  var level by rememberSaveable { mutableStateOf("HSK 4") }
@@ -373,7 +374,7 @@ private fun FlashcardScreen() {
     scope.launch {
      try {
       dao.save(com.trungtalk.data.db.SrsCard(cardId=word.hanzi,box=1,dueAt=System.currentTimeMillis()+10*60*1000,repetitions=0))
-      again++;show=false;index=(index+1)%deck.size
+      again++;reviewPrefs.edit().putInt("again",again).apply();show=false;index=(index+1)%deck.size
      } catch(e:Exception) { aiError="Không lưu được lịch ôn tập: " + (e.message ?: "thử lại") }
      finally { savingReview=false }
     }
@@ -387,7 +388,7 @@ private fun FlashcardScreen() {
       val repetitions=(previous?.repetitions ?: 0)+1
       val days=listOf(1,3,7,14,30)[box-1]
       dao.save(com.trungtalk.data.db.SrsCard(cardId=word.hanzi,box=box,dueAt=System.currentTimeMillis()+days*86400000L,repetitions=repetitions))
-      mastered++;show=false;index=(index+1)%deck.size
+      mastered++;reviewPrefs.edit().putInt("mastered",mastered).apply();show=false;index=(index+1)%deck.size
      } catch(e:Exception) { aiError="Không lưu được lịch ôn tập: " + (e.message ?: "thử lại") }
      finally { savingReview=false }
     }
