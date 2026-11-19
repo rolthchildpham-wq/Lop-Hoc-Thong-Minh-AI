@@ -35,7 +35,7 @@ import java.util.Locale
 data class Lesson(val id: String, val title: String, val description: String, val pinyin: String = "", val tips: List<String> = emptyList())
 data class Phase(val number: Int, val months: String, val title: String, val goal: String, val lessons: List<Lesson>)
 
-private object Curriculum {
+object Curriculum {
     val principles = listOf(
         "30% học kiến thức – 70% thực hành nghe và nói. Không học xong bài rồi bỏ.",
         "Nghe đủ nhiều, đủ sâu. Một bài nghe phải luyện đi luyện lại.",
