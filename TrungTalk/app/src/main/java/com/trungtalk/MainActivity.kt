@@ -529,7 +529,25 @@ private fun StatsScreen() {
 private fun AiScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val history = remember { mutableStateListOf<Pair<String,String>>() }
+    val aiPrefs = remember { context.getSharedPreferences("trungtalk_ai_chat", android.content.Context.MODE_PRIVATE) }
+    val history = remember {
+        mutableStateListOf<Pair<String,String>>().apply {
+            runCatching {
+                val saved = org.json.JSONArray(aiPrefs.getString("history", "[]"))
+                for (i in 0 until saved.length()) {
+                    val item = saved.optJSONObject(i) ?: continue
+                    val role = item.optString("role")
+                    val content = item.optString("content")
+                    if (role in listOf("user", "assistant") && content.isNotBlank()) add(role to content)
+                }
+            }
+        }
+    }
+    LaunchedEffect(history.size) {
+        val saved = org.json.JSONArray()
+        history.forEach { (role, content) -> saved.put(org.json.JSONObject().put("role", role).put("content", content)) }
+        aiPrefs.edit().putString("history", saved.toString()).apply()
+    }
     var input by rememberSaveable { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
