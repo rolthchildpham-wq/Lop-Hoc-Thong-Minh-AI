@@ -137,6 +137,11 @@ fun RoleplayScreen() {
 
 @Composable
 fun HskScreen() {
+ val ctx=LocalContext.current
+ val prefs=remember { ctx.getSharedPreferences("trungtalk_hsk_quiz_stats",android.content.Context.MODE_PRIVATE) }
+ var attempts by remember { mutableIntStateOf(prefs.getInt("attempts",0)) }
+ var best by remember { mutableIntStateOf(prefs.getInt("best",0)) }
+ var latest by remember { mutableIntStateOf(prefs.getInt("latest",0)) }
  val questions=remember { listOf(
   Triple("你好 nghĩa là gì?",listOf("Xin chào","Tạm biệt","Cảm ơn"),0),
   Triple("谢谢 nghĩa là gì?",listOf("Xin lỗi","Cảm ơn","Không có"),1),
@@ -167,8 +172,22 @@ fun HskScreen() {
  var score by remember { mutableIntStateOf(0) }
  var chosen by remember { mutableIntStateOf(-1) }
  val finished=index>=questions.size
+ LaunchedEffect(finished) {
+  if(finished) {
+   latest=score
+   attempts+=1
+   if(score>best) best=score
+   prefs.edit().putInt("attempts",attempts).putInt("best",best).putInt("latest",latest).apply()
+  }
+ }
  Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
   Text("Luyện từ vựng HSK",style=MaterialTheme.typography.headlineSmall)
+  Card(Modifier.fillMaxWidth()){Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){
+   Text("Thống kê luyện tập",style=MaterialTheme.typography.titleMedium)
+   Text("Số bài đã hoàn thành: $attempts")
+   Text("Điểm cao nhất: $best/24")
+   Text("Bài gần nhất: $latest/24")
+  }}
   if(finished){
    Text("Hoàn thành ${questions.size} câu!",style=MaterialTheme.typography.titleLarge)
    Text("Kết quả: $score/${questions.size} · ${score*100/questions.size}%")
