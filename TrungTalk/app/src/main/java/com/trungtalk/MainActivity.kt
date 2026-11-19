@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -301,9 +302,14 @@ private fun FlashcardScreen() {
   onDispose { autoListening=false; tts?.stop(); tts?.shutdown(); tts=null }
  }
  fun speak(text: String, slow: Boolean=false) {
-  tts?.setSpeechRate(if(slow) 0.65f else speed)
-  tts?.setPitch(1f)
-  tts?.speak(text,TextToSpeech.QUEUE_FLUSH,null,"flash-"+System.nanoTime())
+  val engine=tts
+  if(!ready || engine==null) {
+   Toast.makeText(context,"TTS chưa sẵn sàng hoặc chưa cài giọng tiếng Trung. Kiểm tra Cài đặt Android > Văn bản thành giọng nói.",Toast.LENGTH_LONG).show()
+   return
+  }
+  engine.setSpeechRate(if(slow) 0.65f else speed)
+  engine.setPitch(1f)
+  engine.speak(text,TextToSpeech.QUEUE_FLUSH,null,"flash-"+System.nanoTime())
  }
  Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
   Text("Flashcard TrungTalk · AI",style=MaterialTheme.typography.headlineSmall)
@@ -326,9 +332,9 @@ private fun FlashcardScreen() {
   }
   FilledTonalButton(onClick={show=!show},modifier=Modifier.fillMaxWidth()) { Text(if(show) "Ẩn đáp án" else "Lật thẻ / Xem đáp án") }
   Row(horizontalArrangement=Arrangement.spacedBy(6.dp),modifier=Modifier.fillMaxWidth()) {
-   OutlinedButton(enabled=ready,modifier=Modifier.weight(1f),onClick={speak(word.hanzi)}){Text("🔊 Từ")}
-   OutlinedButton(enabled=ready,modifier=Modifier.weight(1f),onClick={speak(word.example)}){Text("▶ Ví dụ")}
-   OutlinedButton(enabled=ready,modifier=Modifier.weight(1f),onClick={speak(word.hanzi,true)}){Text("🐢 Chậm")}
+   OutlinedButton(modifier=Modifier.weight(1f),onClick={speak(word.hanzi)}){Text("🔊 Từ")}
+   OutlinedButton(modifier=Modifier.weight(1f),onClick={speak(word.example)}){Text("▶ Ví dụ")}
+   OutlinedButton(modifier=Modifier.weight(1f),onClick={speak(word.hanzi,true)}){Text("🐢 Chậm")}
   }
   Text("Tốc độ: ${"%.2f".format(speed)}x")
   Slider(value=speed,onValueChange={speed=it},valueRange=0.65f..1.3f)
