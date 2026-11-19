@@ -275,10 +275,20 @@ private fun FlashcardScreen() {
  var mastered by rememberSaveable { mutableIntStateOf(0) }
  var again by rememberSaveable { mutableIntStateOf(0) }
  var speed by rememberSaveable { mutableFloatStateOf(1f) }
- val word = words[index % words.size]
+ var topic by rememberSaveable { mutableStateOf("Giao tiếp công việc và nhà máy") }
+ var level by rememberSaveable { mutableStateOf("HSK 4") }
+ var count by rememberSaveable { mutableIntStateOf(10) }
+ var aiBusy by rememberSaveable { mutableStateOf(false) }
+ var aiError by rememberSaveable { mutableStateOf("") }
+ var repeatCount by rememberSaveable { mutableIntStateOf(3) }
+ var pauseSeconds by rememberSaveable { mutableIntStateOf(2) }
+ var autoListening by rememberSaveable { mutableStateOf(false) }
+ val deck = remember { mutableStateListOf<Word>().apply { addAll(words) } }
+ val word = deck[index.coerceIn(0, deck.lastIndex)]
  val context = LocalContext.current
  val dao = remember { com.trungtalk.data.db.TrungTalkDatabase.get(context).srsDao() }
- LaunchedEffect(Unit) { words.forEach { dao.save(com.trungtalk.data.db.SrsCard(cardId=it.hanzi)) } }
+ val scope = rememberCoroutineScope()
+ LaunchedEffect(Unit) { deck.forEach { dao.save(com.trungtalk.data.db.SrsCard(cardId=it.hanzi)) } }
  var tts by remember { mutableStateOf<TextToSpeech?>(null) }
  var ready by remember { mutableStateOf(false) }
  DisposableEffect(Unit) {
@@ -286,16 +296,19 @@ private fun FlashcardScreen() {
    ready = status == TextToSpeech.SUCCESS
    if (status == TextToSpeech.SUCCESS) tts?.language = Locale.SIMPLIFIED_CHINESE
   }
-  onDispose { tts?.stop(); tts?.shutdown(); tts=null }
+  onDispose { autoListening=false; tts?.stop(); tts?.shutdown(); tts=null }
  }
- fun speak(text: String, slow: Boolean=false) { tts?.setSpeechRate(if(slow) 0.65f else speed); tts?.setPitch(1f); tts?.speak(text,TextToSpeech.QUEUE_FLUSH,null,"flash-"+System.nanoTime()) }
- Column(Modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
-  Text("Flashcard · Từ vựng có ví dụ",style=MaterialTheme.typography.headlineSmall)
-  Text("Thẻ ${index+1}/${words.size} · Đã nhớ: $mastered · Ôn lại: $again")
-  LinearProgressIndicator(progress=(index+1).toFloat()/words.size,modifier=Modifier.fillMaxWidth())
+ fun speak(text: String, slow: Boolean=false) {
+  tts?.setSpeechRate(if(slow) 0.65f else speed)
+  tts?.setPitch(1f)
+  tts?.speak(text,TextToSpeech.QUEUE_FLUSH,null,"flash-"+System.nanoTime())
+ }
+ Column(Modifier.fillMaxSize().padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+  Text("Flashcard TrungTalk · AI",style=MaterialTheme.typography.headlineSmall)
+  Text("Thẻ ${index+1}/${deck.size} · Đã nhớ: $mastered · Ôn lại: $again")
+  LinearProgressIndicator(progress=(index+1).toFloat()/deck.size,modifier=Modifier.fillMaxWidth())
   Card(Modifier.fillMaxWidth().weight(1f).clickable{show=!show}) {
-   Column(Modifier.fillMaxSize().padding(20.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center) {
-    Text(word.illustration,style=MaterialTheme.typography.displayMedium)
+   Column(Modifier.fillMaxSize().padding(16.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center) {
     Text(word.category,style=MaterialTheme.typography.labelLarge,color=MaterialTheme.colorScheme.secondary)
     Text(word.hanzi,style=MaterialTheme.typography.displayLarge,color=MaterialTheme.colorScheme.primary)
     if(show) {
@@ -306,35 +319,91 @@ private fun FlashcardScreen() {
      Text(word.example,style=MaterialTheme.typography.headlineSmall)
      Text(word.examplePinyin)
      Text(word.exampleMeaning)
-    } else Text("Chạm để lật thẻ · nghe từ trước khi xem đáp án")
+    } else Text("Chạm để lật thẻ · nghe trước khi xem đáp án")
    }
   }
-  Row(horizontalArrangement=Arrangement.spacedBy(8.dp),modifier=Modifier.fillMaxWidth()) {
+  Row(horizontalArrangement=Arrangement.spacedBy(6.dp),modifier=Modifier.fillMaxWidth()) {
    OutlinedButton(enabled=ready,modifier=Modifier.weight(1f),onClick={speak(word.hanzi)}){Text("🔊 Từ")}
    OutlinedButton(enabled=ready,modifier=Modifier.weight(1f),onClick={speak(word.example)}){Text("▶ Ví dụ")}
    OutlinedButton(enabled=ready,modifier=Modifier.weight(1f),onClick={speak(word.hanzi,true)}){Text("🐢 Chậm")}
   }
-  Text("Tốc độ nghe: ${speed}x")
-  Slider(value=speed,onValueChange={speed=it},valueRange=0.75f..1.25f,steps=1)
-  Row(horizontalArrangement=Arrangement.spacedBy(8.dp),modifier=Modifier.fillMaxWidth()) {
+  Text("Tốc độ: ${"%.2f".format(speed)}x")
+  Slider(value=speed,onValueChange={speed=it},valueRange=0.65f..1.3f)
+  Row(horizontalArrangement=Arrangement.spacedBy(6.dp),modifier=Modifier.fillMaxWidth()) {
+   OutlinedButton(modifier=Modifier.weight(1f),onClick={repeatCount=3}){Text("Lặp 3")}
+   OutlinedButton(modifier=Modifier.weight(1f),onClick={repeatCount=5}){Text("Lặp 5")}
+   OutlinedButton(modifier=Modifier.weight(1f),onClick={repeatCount=10}){Text("Lặp 10")}
+  }
+  Row(verticalAlignment=Alignment.CenterVertically) {
+   Text("Nghỉ giữa lần đọc: $pauseSeconds giây",modifier=Modifier.weight(1f))
+   Slider(value=pauseSeconds.toFloat(),onValueChange={pauseSeconds=it.toInt()},valueRange=1f..8f,steps=6,modifier=Modifier.weight(1f))
+  }
+  Button(enabled=ready&&!autoListening,onClick={
+   autoListening=true
+   scope.launch {
+    val card=deck[index.coerceIn(0,deck.lastIndex)]
+    repeat(repeatCount) { n ->
+     if(!autoListening) return@launch
+     speak(card.hanzi)
+     kotlinx.coroutines.delay(2200)
+     if(!autoListening) return@launch
+     speak(card.pinyin)
+     kotlinx.coroutines.delay(1800)
+     if(!autoListening) return@launch
+     speak(card.example)
+     kotlinx.coroutines.delay(2600)
+     if(n<repeatCount-1) kotlinx.coroutines.delay(pauseSeconds*1000L)
+    }
+    autoListening=false
+   }
+  },modifier=Modifier.fillMaxWidth()) { Text("🔁 Nghe lặp: từ → Pinyin → ví dụ") }
+  if(autoListening) OutlinedButton(onClick={autoListening=false;tts?.stop()},modifier=Modifier.fillMaxWidth()){Text("Dừng nghe lặp")}
+  Row(horizontalArrangement=Arrangement.spacedBy(6.dp),modifier=Modifier.fillMaxWidth()) {
    OutlinedButton(modifier=Modifier.weight(1f),onClick={
     again++; show=false
-    val next=words[(index+1)%words.size]
-    val old=runCatching{dao.due()}.getOrNull()
     kotlinx.coroutines.MainScope().launch { dao.save(com.trungtalk.data.db.SrsCard(cardId=word.hanzi,box=1,dueAt=System.currentTimeMillis()+10*60*1000,repetitions=0)) }
-    index=(index+1)%words.size
-   }){Text("Chưa nhớ · Ôn sớm")}
+    index=(index+1)%deck.size
+   }){Text("Chưa nhớ")}
    Button(modifier=Modifier.weight(1f),onClick={
     mastered++;show=false
-    val box=(mastered.coerceAtMost(5)); val days=listOf(1,1,3,7,14,30)[box]
+    val box=mastered.coerceAtMost(5); val days=listOf(1,1,3,7,14,30)[box]
     kotlinx.coroutines.MainScope().launch { dao.save(com.trungtalk.data.db.SrsCard(cardId=word.hanzi,box=box,dueAt=System.currentTimeMillis()+days*86400000L,repetitions=mastered)) }
-    index=(index+1)%words.size
+    index=(index+1)%deck.size
    }){Text("Đã nhớ ✓")}
   }
   Row(horizontalArrangement=Arrangement.spacedBy(8.dp),modifier=Modifier.fillMaxWidth()) {
-   TextButton(onClick={index=(index-1+words.size)%words.size;show=false},modifier=Modifier.weight(1f)){Text("← Trước")}
-   TextButton(onClick={index=(index+1)%words.size;show=false},modifier=Modifier.weight(1f)){Text("Tiếp →")}
+   TextButton(onClick={index=(index-1+deck.size)%deck.size;show=false},modifier=Modifier.weight(1f)){Text("← Trước")}
+   TextButton(onClick={index=(index+1)%deck.size;show=false},modifier=Modifier.weight(1f)){Text("Tiếp →")}
   }
+  HorizontalDivider()
+  Text("Tạo Flashcard bằng AI",style=MaterialTheme.typography.titleMedium)
+  OutlinedTextField(topic,{topic=it},label={Text("Chủ đề (nhà máy, QC, EHS, gia đình...)")},modifier=Modifier.fillMaxWidth(),singleLine=true)
+  OutlinedTextField(level,{level=it},label={Text("Cấp HSK hoặc giao tiếp")},modifier=Modifier.fillMaxWidth(),singleLine=true)
+  Row(verticalAlignment=Alignment.CenterVertically) {
+   Text("Số thẻ: $count",modifier=Modifier.weight(1f))
+   Slider(value=count.toFloat(),onValueChange={count=it.toInt()},valueRange=5f..20f,steps=14,modifier=Modifier.weight(1f))
+  }
+  if(aiError.isNotBlank()) Text(aiError,color=MaterialTheme.colorScheme.error)
+  Button(enabled=!aiBusy&&topic.isNotBlank(),onClick={
+   aiBusy=true;aiError=""
+   scope.launch {
+    try {
+     val raw=com.trungtalk.ai.BackendClient(context).generateFlashcards(topic,level,count)
+     val clean=raw.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
+     val arr=org.json.JSONArray(clean)
+     val added=mutableListOf<Word>()
+     for(i in 0 until arr.length()) {
+      val obj=arr.optJSONObject(i)?:continue
+      val hanzi=obj.optString("hanzi").trim()
+      if(hanzi.isBlank()||deck.any{it.hanzi==hanzi}||added.any{it.hanzi==hanzi}) continue
+      added.add(Word(hanzi,obj.optString("pinyin"),obj.optString("meaning_vi"),"AI",obj.optString("example"),obj.optString("example_pinyin"),obj.optString("example_vi"),obj.optString("category",topic)))
+     }
+     if(added.isEmpty()) aiError="AI không trả về thẻ hợp lệ hoặc từ bị trùng. Hãy thử chủ đề khác."
+     else { deck.addAll(added);index=deck.lastIndex;show=true;added.forEach{dao.save(com.trungtalk.data.db.SrsCard(cardId=it.hanzi))} }
+    } catch(e:Exception) { aiError=e.message ?: "Lỗi tạo thẻ AI. Kiểm tra backend và thử lại." }
+    finally { aiBusy=false }
+   }
+  },modifier=Modifier.fillMaxWidth()) { Text(if(aiBusy)"AI đang tạo thẻ…" else "✨ Tạo $count thẻ bằng AI") }
  }
 }
 
