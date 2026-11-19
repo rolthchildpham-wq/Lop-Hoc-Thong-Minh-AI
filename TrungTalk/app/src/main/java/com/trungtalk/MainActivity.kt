@@ -290,7 +290,6 @@ private fun FlashcardScreen() {
  var savingReview by remember { mutableStateOf(false) }
  val deck = remember { mutableStateListOf<Word>().apply { addAll(words.shuffled()) } }
  val word = deck[index.coerceIn(0, deck.lastIndex)]
- val context = LocalContext.current
  val dao = remember { com.trungtalk.data.db.TrungTalkDatabase.get(context).srsDao() }
  val scope = rememberCoroutineScope()
  // Do not pre-write the entire deck on screen entry; persist only cards the learner reviews.
