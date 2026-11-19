@@ -294,7 +294,7 @@ private val starterDictionary = listOf(
  DictWord("工厂","工廠","gōng chǎng","Nhà máy",2,"工厂很大。"),
  DictWord("机器","機器","jī qì","Máy móc",3,"这台机器需要检查。"),
  DictWord("设备","設備","shè bèi","Thiết bị",3,"设备已经准备好了。"),
- DictWord("材料","材料","cái liào","Vật liệu",3,"材料还不够。"),
+ DictWord("材料","材料","cáiliào","Vật liệu",3,"材料还不够。"),
  DictWord("产品","產品","chǎn pǐn","Sản phẩm",2,"这个产品质量很好。"),
  DictWord("数量","數量","shù liàng","Số lượng",3,"请确认数量。"),
  DictWord("订单","訂單","dìng dān","Đơn hàng",3,"订单已经收到。"),
