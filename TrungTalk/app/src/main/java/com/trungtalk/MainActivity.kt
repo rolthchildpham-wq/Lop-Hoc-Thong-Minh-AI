@@ -274,6 +274,7 @@ private val words = listOf(
 private fun FlashcardScreen() {
  var index by rememberSaveable { mutableIntStateOf(0) }
  var show by rememberSaveable { mutableStateOf(false) }
+ val context = LocalContext.current
  val reviewPrefs = remember { context.applicationContext.getSharedPreferences("trungtalk_flashcard_progress", android.content.Context.MODE_PRIVATE) }
  var mastered by rememberSaveable { mutableIntStateOf(reviewPrefs.getInt("mastered",0)) }
  var again by rememberSaveable { mutableIntStateOf(reviewPrefs.getInt("again",0)) }
