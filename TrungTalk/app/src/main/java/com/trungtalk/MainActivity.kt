@@ -127,11 +127,43 @@ private fun TrungTalkApp() {
 
 @Composable
 private fun SettingsScreen(dark: Boolean, onDarkChange: (Boolean) -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val progress = remember { UserProgress(context) }
+    val completed by progress.completed.collectAsState(initial = emptySet())
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null) scope.launch {
+            try {
+                val json = org.json.JSONObject().put("app", "TrungTalk").put("backupVersion", 1).put("exportedAt", System.currentTimeMillis()).put("completedLessons", org.json.JSONArray(completed.sorted()))
+                context.contentResolver.openOutputStream(uri)?.use { it.write(json.toString(2).toByteArray(Charsets.UTF_8)) }
+                Toast.makeText(context, "Đã xuất tiến độ học (" + completed.size + " bài).", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) { Toast.makeText(context, "Xuất dữ liệu thất bại: " + e.message, Toast.LENGTH_LONG).show() }
+        }
+    }
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) scope.launch {
+            try {
+                val raw = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } ?: error("Không đọc được tệp")
+                val json = org.json.JSONObject(raw)
+                require(json.optString("app") == "TrungTalk" && json.optInt("backupVersion") == 1) { "Tệp sao lưu không đúng định dạng" }
+                val arr = json.optJSONArray("completedLessons") ?: error("Thiếu dữ liệu bài học")
+                val ids = buildSet { for (i in 0 until arr.length()) { val id = arr.optString(i); if (id.isNotBlank()) add(id) } }
+                progress.restoreCompleted(ids)
+                Toast.makeText(context, "Đã nhập tiến độ: " + ids.size + " bài.", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) { Toast.makeText(context, "Nhập dữ liệu thất bại: " + e.message, Toast.LENGTH_LONG).show() }
+        }
+    }
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Cài đặt TrungTalk", style = MaterialTheme.typography.headlineSmall)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Giao diện tối"); Switch(checked = dark, onCheckedChange = onDarkChange) }
         Text("Ngôn ngữ giao diện: Tiếng Việt (bản hiện tại). Bản song ngữ Việt/Anh chưa hoàn tất.")
         Text("AI: cần Worker URL và GEMINI_API_KEY được cấu hình ở máy chủ.")
+        Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Sao lưu tiến độ học", style = MaterialTheme.typography.titleMedium)
+            Text("Hiện đã hoàn thành: " + completed.size + " bài. Tệp JSON lưu tiến độ bài học; chưa bao gồm lịch sử Grammar, thẻ SRS, hội thoại AI hay từ yêu thích.")
+            Button(onClick = { exportLauncher.launch("TrungTalk_Backup.json") }, modifier = Modifier.fillMaxWidth()) { Text("Xuất bản sao lưu") }
+            OutlinedButton(onClick = { importLauncher.launch(arrayOf("application/json", "text/*")) }, modifier = Modifier.fillMaxWidth()) { Text("Nhập bản sao lưu") }
+        } }
         Text("Phiên bản 2.0.0 · com.trungtalk")
     }
 }
