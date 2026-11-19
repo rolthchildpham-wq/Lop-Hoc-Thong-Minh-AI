@@ -143,6 +143,7 @@ fun HskScreen() {
  var best by remember { mutableIntStateOf(prefs.getInt("best",0)) }
  var latest by remember { mutableIntStateOf(prefs.getInt("latest",0)) }
  var totalScore by remember { mutableIntStateOf(prefs.getInt("total_score",0)) }
+ var confirmReset by remember { mutableStateOf(false) }
  val questions=remember { listOf(
   Triple("你好 nghĩa là gì?",listOf("Xin chào","Tạm biệt","Cảm ơn"),0),
   Triple("谢谢 nghĩa là gì?",listOf("Xin lỗi","Cảm ơn","Không có"),1),
@@ -190,7 +191,9 @@ fun HskScreen() {
    Text("Điểm cao nhất: $best/24")
    Text("Bài gần nhất: $latest/24")
    Text("Điểm trung bình: ${if(attempts>0) totalScore/attempts else 0}/24")
+   TextButton(onClick={confirmReset=true}){Text("Xóa thống kê")}
   }}
+  if(confirmReset) AlertDialog(onDismissRequest={confirmReset=false},title={Text("Xóa thống kê HSK?")},text={Text("Xóa số lần thi và các điểm đã lưu trên thiết bị?")},confirmButton={TextButton(onClick={attempts=0;best=0;latest=0;totalScore=0;prefs.edit().remove("attempts").remove("best").remove("latest").remove("total_score").apply();confirmReset=false}){Text("Xóa")}},dismissButton={TextButton(onClick={confirmReset=false}){Text("Hủy")}})
   if(finished){
    Text("Hoàn thành ${questions.size} câu!",style=MaterialTheme.typography.titleLarge)
    Text("Kết quả: $score/${questions.size} · ${score*100/questions.size}%")
