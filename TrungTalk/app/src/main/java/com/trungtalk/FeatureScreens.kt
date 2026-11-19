@@ -77,24 +77,43 @@ fun RoleplayScreen() {
   "Khách hàng phàn nàn" to "Bạn là khách hàng nhận 1000 sản phẩm có 50 sản phẩm lỗi. Phàn nàn và yêu cầu xử lý.",
   "Họp giao ban" to "Bạn là trưởng phòng, chủ trì họp tuần và hỏi báo cáo công việc."
  )
- var selected by remember { mutableIntStateOf(0) }
- var answer by remember { mutableStateOf("") }
- var reply by remember { mutableStateOf("") }
- var error by remember { mutableStateOf("") }
+ var selected by rememberSaveable { mutableIntStateOf(0) }
+ var answer by rememberSaveable { mutableStateOf("") }
+ var messages by remember { mutableStateOf<List<Pair<String,String>>>(emptyList()) }
+ var error by rememberSaveable { mutableStateOf("") }
  var busy by remember { mutableStateOf(false) }
  Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
   Text("Roleplay giao tiếp công việc",style=MaterialTheme.typography.headlineSmall)
-  roles.forEachIndexed{i,item-> FilterChip(selected==i,{selected=i;answer="";reply="";error=""},label={Text(item.first)})}
+  Text("Luyện hội thoại nhiều lượt. AI ghi nhớ các lượt nói trong tình huống hiện tại và phản hồi theo vai.")
+  roles.forEachIndexed{i,item-> FilterChip(selected==i,{selected=i;answer="";messages=emptyList();error=""},label={Text(item.first)})}
   Card(Modifier.fillMaxWidth()){Column(Modifier.padding(16.dp)){Text("Tình huống",style=MaterialTheme.typography.titleMedium);Text(roles[selected].second)}}
-  OutlinedTextField(answer,{answer=it},label={Text("Trả lời bằng tiếng Trung")},modifier=Modifier.fillMaxWidth(),minLines=3)
+  messages.forEach { (role,content) ->
+   Card(Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=if(role=="assistant") MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant)){
+    Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){
+     Text(if(role=="assistant") "AI / Nhân vật" else "Bạn",style=MaterialTheme.typography.labelLarge)
+     Text(content)
+    }
+   }
+  }
+  OutlinedTextField(answer,{answer=it},label={Text("Trả lời bằng tiếng Trung")},modifier=Modifier.fillMaxWidth(),minLines=2)
   Button(enabled=answer.isNotBlank()&&!busy,onClick={
-   val prompt="Tình huống: ${roles[selected].second}\nHọc viên trả lời: $answer\nHãy phản hồi như nhân vật trong tình huống bằng tiếng Trung đơn giản, sau đó giải thích ngắn bằng tiếng Việt."
-   busy=true;error="";reply=""
-   scope.launch { try { reply=BackendClient(ctx).chat(emptyList(),prompt) } catch(e:Exception){error=e.message?: "Không kết nối được AI."} finally {busy=false} }
-  },modifier=Modifier.fillMaxWidth()){Text(if(busy)"AI đang phản hồi…" else "Gửi cho AI đóng vai")}
+   val userText=answer.trim()
+   val prior=messages
+   val history=prior+("user" to userText)
+   val prompt="Bạn đang roleplay tình huống: ${roles[selected].second}. Tiếp tục hội thoại tự nhiên bằng tiếng Trung phù hợp HSK 2-4. Hãy phản hồi như nhân vật, không kết thúc tình huống. Sau câu tiếng Trung, thêm phần ngắn tiếng Việt: giải nghĩa phản hồi và góp ý câu học viên vừa nói (nêu sửa câu nếu cần)."
+   busy=true;error="";answer=""
+   scope.launch {
+    try { val reply=BackendClient(ctx).chat(prior,prompt+"\nCâu mới của học viên: "+userText); messages=history+("assistant" to reply) }
+    catch(e:Exception){answer=userText;error=e.message?: "Không kết nối được AI."}
+    finally {busy=false}
+   }
+  },modifier=Modifier.fillMaxWidth()){Text(if(busy)"AI đang trả lời…" else "Gửi · tiếp tục hội thoại")}
+  Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
+   OutlinedButton(onClick={messages=emptyList();answer="";error=""},modifier=Modifier.weight(1f)){Text("Làm lại")}
+   OutlinedButton(onClick={selected=(selected+1)%roles.size;messages=emptyList();answer="";error=""},modifier=Modifier.weight(1f)){Text("Đổi tình huống")}
+  }
   if(error.isNotBlank()) Text(error,color=MaterialTheme.colorScheme.error)
-  if(reply.isNotBlank()) Card(Modifier.fillMaxWidth()){Column(Modifier.padding(16.dp)){Text("Phản hồi nhân vật",style=MaterialTheme.typography.titleMedium);Text(reply)}}
-  Text("AI roleplay yêu cầu Worker đã deploy và BACKEND_URL được cấu hình.")
+  Text("Hội thoại chỉ được lưu trong màn hình hiện tại; rời màn hình có thể mất lịch sử.")
  }
 }
 
