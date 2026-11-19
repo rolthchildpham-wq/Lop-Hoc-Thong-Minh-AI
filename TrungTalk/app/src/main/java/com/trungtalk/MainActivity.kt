@@ -293,7 +293,7 @@ private fun FlashcardScreen() {
   val byHanzi=words.associateBy{it.hanzi}
   mutableStateListOf<Word>().apply {
    if(savedOrder!=null && savedOrder.size==words.size && savedOrder.all{it in byHanzi}) addAll(savedOrder.mapNotNull{byHanzi[it]})
-   else { addAll(words.shuffled()); reviewPrefs.edit().putString("deck_order",deck.joinToString("|"){it.hanzi}).apply() }
+    else { val shuffled=words.shuffled(); addAll(shuffled); reviewPrefs.edit().putString("deck_order",shuffled.joinToString("|"){it.hanzi}).apply() }
   }
  }
  val word = deck[index.coerceIn(0, deck.lastIndex)]
@@ -429,7 +429,7 @@ private fun FlashcardScreen() {
       added.add(Word(hanzi,obj.optString("pinyin"),obj.optString("meaning_vi"),"AI",obj.optString("example"),obj.optString("example_pinyin"),obj.optString("example_vi"),obj.optString("category",topic)))
      }
      if(added.isEmpty()) aiError="AI không trả về thẻ hợp lệ hoặc từ bị trùng. Hãy thử chủ đề khác."
-     else { deck.addAll(added);reviewPrefs.edit().putString("deck_order",joinToString("|"){it.hanzi}).apply();index=deck.lastIndex;reviewPrefs.edit().putInt("deck_index",index).apply();show=true;added.forEach{dao.save(com.trungtalk.data.db.SrsCard(cardId=it.hanzi))} }
+     else { deck.addAll(added);reviewPrefs.edit().putString("deck_order",deck.joinToString("|"){it.hanzi}).apply();index=deck.lastIndex;reviewPrefs.edit().putInt("deck_index",index).apply();show=true;added.forEach{dao.save(com.trungtalk.data.db.SrsCard(cardId=it.hanzi))} }
     } catch(e:Exception) { aiError=e.message ?: "Lỗi tạo thẻ AI. Kiểm tra backend và thử lại." }
     finally { aiBusy=false }
    }
