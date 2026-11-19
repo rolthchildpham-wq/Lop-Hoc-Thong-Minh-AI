@@ -232,6 +232,7 @@ fun SrsScreen() {
  val dao=remember{TrungTalkDatabase.get(ctx).srsDao()}
  val scope=rememberCoroutineScope()
  val aiPrefs=remember{ctx.getSharedPreferences("trungtalk_flashcard_progress",android.content.Context.MODE_PRIVATE)}
+ val allCards by dao.all().collectAsState(initial=emptyList())
  var due by remember{mutableStateOf<List<SrsCard>>(emptyList())}
  var busy by remember{mutableStateOf(false)}
  LaunchedEffect(Unit){due=dao.due()}
@@ -239,6 +240,7 @@ fun SrsScreen() {
  Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
   Text("Ôn tập SRS – Leitner",style=MaterialTheme.typography.headlineSmall)
   Text("Thẻ đến hạn hôm nay: ${due.size}",style=MaterialTheme.typography.titleMedium)
+  Text("Tổng ${allCards.size} thẻ · Hộp 1: ${allCards.count{it.box==1}} · Hộp 2–4: ${allCards.count{it.box in 2..4}} · Hộp 5: ${allCards.count{it.box>=5}}",style=MaterialTheme.typography.bodyMedium)
   Text("Chưa nhớ → ôn lại sau 10 phút, về hộp 1. Đã nhớ → tăng hộp và giãn lịch 1, 3, 7, 14, 30 ngày.")
   if(due.isEmpty()) {
    Text("🎉 Bạn đã ôn hết thẻ đến hạn!")
