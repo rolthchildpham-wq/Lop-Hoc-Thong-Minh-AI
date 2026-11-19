@@ -120,7 +120,7 @@ fun RoleplayScreen() {
 
 @Composable
 fun HskScreen() {
- val questions=listOf(
+ val questions=remember { listOf(
   Triple("你好 nghĩa là gì?",listOf("Xin chào","Tạm biệt","Cảm ơn"),0),
   Triple("谢谢 nghĩa là gì?",listOf("Xin lỗi","Cảm ơn","Không có"),1),
   Triple("工作 nghĩa là gì?",listOf("Nhà máy","Công việc","Chất lượng"),1),
@@ -145,7 +145,7 @@ fun HskScreen() {
   Triple("医院 nghĩa là gì?",listOf("Bệnh viện","Nhà máy","Nhà ga"),0),
   Triple("买 nghĩa là gì?",listOf("Bán","Mua","Đổi"),1),
   Triple("再 nghĩa là gì?",listOf("Không","Đã","Lại / thêm lần nữa"),2)
- )
+ ).shuffled().map { q -> val answer=q.second[q.third]; val options=q.second.shuffled(); Triple(q.first,options,options.indexOf(answer)) } }
  var index by remember { mutableIntStateOf(0) }
  var score by remember { mutableIntStateOf(0) }
  var chosen by remember { mutableIntStateOf(-1) }
