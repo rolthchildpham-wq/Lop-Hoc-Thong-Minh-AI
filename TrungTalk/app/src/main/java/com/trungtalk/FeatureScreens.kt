@@ -186,19 +186,38 @@ fun GamificationScreen() {
 
 @Composable
 fun SrsScreen() {
- val ctx=LocalContext.current; val dao=remember{TrungTalkDatabase.get(ctx).srsDao()}; val scope=rememberCoroutineScope()
+ val ctx=LocalContext.current
+ val dao=remember{TrungTalkDatabase.get(ctx).srsDao()}
+ val scope=rememberCoroutineScope()
  var due by remember{mutableStateOf<List<SrsCard>>(emptyList())}
+ var busy by remember{mutableStateOf(false)}
  LaunchedEffect(Unit){due=dao.due()}
- Column(Modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
+ val intervals=listOf(1,3,7,14,30)
+ Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
   Text("Ôn tập SRS – Leitner",style=MaterialTheme.typography.headlineSmall)
-  Text("Thẻ đến hạn: ${due.size}")
-  due.forEach{card->Card(Modifier.fillMaxWidth()){Column(Modifier.padding(12.dp)){
-   Text(card.cardId,style=MaterialTheme.typography.titleLarge);Text("Hộp ${card.box} · ${card.repetitions} lần ôn")
-   Row{
-    TextButton(onClick={scope.launch{dao.save(card.copy(box=1,dueAt=System.currentTimeMillis()+600000,repetitions=card.repetitions+1));due=dao.due()}}){Text("Chưa nhớ")}
-    TextButton(onClick={scope.launch{val b=(card.box+1).coerceAtMost(5);val days=listOf(1,1,3,7,14,30)[b];dao.save(card.copy(box=b,dueAt=System.currentTimeMillis()+days*86400000L,repetitions=card.repetitions+1));due=dao.due()}}){Text("Đã nhớ")}
+  Text("Thẻ đến hạn hôm nay: ${due.size}",style=MaterialTheme.typography.titleMedium)
+  Text("Chưa nhớ → ôn lại sau 10 phút, về hộp 1. Đã nhớ → tăng hộp và giãn lịch 1, 3, 7, 14, 30 ngày.")
+  if(due.isEmpty()) {
+   Text("🎉 Bạn đã ôn hết thẻ đến hạn!")
+   Text("Thẻ mới sẽ tự xuất hiện khi đến lịch ôn.")
+  }
+  due.forEach{card->Card(Modifier.fillMaxWidth()){Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
+   Text(card.cardId,style=MaterialTheme.typography.titleLarge)
+   Text("Hộp ${card.box.coerceIn(1,5)} · Đã ôn ${card.repetitions} lần")
+   val nextBox=(card.box+1).coerceAtMost(5)
+   val nextDays=intervals[nextBox-1]
+   Text("Nếu nhớ: lần ôn tiếp theo sau ${nextDays} ngày")
+   Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
+    OutlinedButton(enabled=!busy,onClick={busy=true;scope.launch{
+     dao.save(card.copy(box=1,dueAt=System.currentTimeMillis()+10*60*1000,repetitions=card.repetitions+1))
+     due=dao.due();busy=false
+    }},modifier=Modifier.weight(1f)){Text("Chưa nhớ · 10 phút")}
+    Button(enabled=!busy,onClick={busy=true;scope.launch{
+     val b=nextBox
+     dao.save(card.copy(box=b,dueAt=System.currentTimeMillis()+nextDays*86400000L,repetitions=card.repetitions+1))
+     due=dao.due();busy=false
+    }},modifier=Modifier.weight(1f)){Text("Đã nhớ · +${nextDays} ngày")}
    }
   }}}
-  if(due.isEmpty()) Text("Chưa có thẻ đến hạn. Thẻ SRS sẽ xuất hiện khi được thêm vào kho ôn tập.")
  }
 }
