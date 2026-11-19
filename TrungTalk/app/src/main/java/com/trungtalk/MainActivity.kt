@@ -508,6 +508,8 @@ private fun SpeakingScreen() {
 private fun StatsScreen() {
     val context = LocalContext.current
     val completed by remember { UserProgress(context).completed }.collectAsState(initial = emptySet())
+    val srsDao = remember { com.trungtalk.data.db.TrungTalkDatabase.get(context).srsDao() }
+    val srsCards by srsDao.all().collectAsState(initial = emptyList())
     val total = Curriculum.phases.sumOf { it.lessons.size }
     val done = Curriculum.phases.sumOf { phase -> phase.lessons.count { it.id in completed } }
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -522,6 +524,17 @@ private fun StatsScreen() {
             val count = phase.lessons.count { it.id in completed }
             Text(phase.title + ": " + count + "/" + phase.lessons.size + " bài")
         }
+        Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Ôn từ vựng SRS", style = MaterialTheme.typography.titleMedium)
+            Text("Tổng thẻ đang ôn: ${srsCards.size}", style = MaterialTheme.typography.titleLarge)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Hộp 1: ${srsCards.count { it.box == 1 }}")
+                Text("Hộp 2–4: ${srsCards.count { it.box in 2..4 }}")
+                Text("Hộp 5: ${srsCards.count { it.box >= 5 }}")
+            }
+            LinearProgressIndicator(progress = if (srsCards.isEmpty()) 0f else srsCards.count { it.box >= 5 }.toFloat() / srsCards.size, modifier = Modifier.fillMaxWidth())
+            Text("Tỷ lệ thẻ đạt Hộp 5: ${if (srsCards.isEmpty()) 0 else srsCards.count { it.box >= 5 } * 100 / srsCards.size}%")
+        } }
     }
 }
 
