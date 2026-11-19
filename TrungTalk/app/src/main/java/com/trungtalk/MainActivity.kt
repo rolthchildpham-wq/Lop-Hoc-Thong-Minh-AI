@@ -244,12 +244,12 @@ private fun PrinciplesScreen(nav: NavController) {
     }
 }
 
-private data class Word(val hanzi: String, val pinyin: String, val meaning: String)
+private data class Word(val hanzi: String, val pinyin: String, val meaning: String, val illustration: String)
 private val words = listOf(
-    Word("你好","nǐ hǎo","Xin chào"), Word("谢谢","xiè xie","Cảm ơn"), Word("请","qǐng","Xin mời / vui lòng"),
-    Word("工作","gōng zuò","Công việc"), Word("工厂","gōng chǎng","Nhà máy"), Word("质量","zhì liàng","Chất lượng"),
-    Word("数量","shù liàng","Số lượng"), Word("完成","wán chéng","Hoàn thành"), Word("检查","jiǎn chá","Kiểm tra"),
-    Word("交货期","jiāo huò qī","Thời hạn giao hàng")
+    Word("你好","nǐ hǎo","Xin chào","👋"), Word("谢谢","xiè xie","Cảm ơn","🙏"), Word("请","qǐng","Xin mời / vui lòng","🙋"),
+    Word("工作","gōng zuò","Công việc","💼"), Word("工厂","gōng chǎng","Nhà máy","🏭"), Word("质量","zhì liàng","Chất lượng","⭐"),
+    Word("数量","shù liàng","Số lượng","🔢"), Word("完成","wán chéng","Hoàn thành","✅"), Word("检查","jiǎn chá","Kiểm tra","🔍"),
+    Word("交货期","jiāo huò qī","Thời hạn giao hàng","📅")
 )
 
 @Composable
@@ -272,6 +272,7 @@ private fun FlashcardScreen() {
         Text("Thẻ " + ((index % words.size) + 1) + "/" + words.size + " · Đã nhớ: " + remembered + " · Ôn lại: " + retry)
         Card(Modifier.fillMaxWidth().weight(1f).clickable { show = !show }) {
             Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                Text(word.illustration, style = MaterialTheme.typography.displayMedium)
                 Text(word.hanzi, style = MaterialTheme.typography.displayLarge, color = MaterialTheme.colorScheme.primary)
                 if (show) { Text(word.pinyin, style = MaterialTheme.typography.headlineSmall); Text(word.meaning, style = MaterialTheme.typography.titleLarge) }
                 else Text("Chạm thẻ để xem Pinyin và nghĩa")
