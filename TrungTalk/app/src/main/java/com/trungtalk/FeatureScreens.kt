@@ -222,11 +222,11 @@ fun GamificationScreen() {
  val totalLessons=Curriculum.phases.sumOf { it.lessons.size }
  val achievements=listOf(
   Triple("🌱","Khởi động",1),
-  Triple("🔥","Kiên trì",5),
-  Triple("🎯","Chăm chỉ",20),
-  Triple("💎","Chuyên gia",50),
+  Triple("🔥","Kiên trì",(totalLessons*0.2f).toInt().coerceAtLeast(2)),
+  Triple("🎯","Chăm chỉ",(totalLessons*0.5f).toInt().coerceAtLeast(3)),
+  Triple("💎","Chuyên gia",(totalLessons*0.8f).toInt().coerceAtLeast(4)),
   Triple("🏆","Bậc thầy",totalLessons)
- )
+ ).distinctBy { it.third }.sortedBy { it.third }
  Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
   Text("Thành tích & cấp độ",style=MaterialTheme.typography.headlineSmall)
   Card(Modifier.fillMaxWidth()){Column(Modifier.padding(20.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
