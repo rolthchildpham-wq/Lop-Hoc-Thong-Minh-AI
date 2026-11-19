@@ -1,6 +1,11 @@
 package com.trungtalk
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.clickable
+import android.speech.tts.TextToSpeech
+import java.util.Locale
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -221,3 +226,91 @@ fun SrsScreen() {
   }}}
  }
 }
+
+
+private data class DictWord(val hanzi:String,val traditional:String,val pinyin:String,val meaning:String,val level:Int,val example:String)
+private val starterDictionary = listOf(
+ DictWord("你好","你好","nǐ hǎo","Xin chào",1,"你好！"),
+ DictWord("谢谢","謝謝","xiè xie","Cảm ơn",1,"谢谢你。"),
+ DictWord("再见","再見","zài jiàn","Tạm biệt",1,"明天再见。"),
+ DictWord("我","我","wǒ","Tôi; mình",1,"我是越南人。"),
+ DictWord("你","你","nǐ","Bạn",1,"你好吗？"),
+ DictWord("他","他","tā","Anh ấy",1,"他是我的朋友。"),
+ DictWord("她","她","tā","Cô ấy",1,"她在学校。"),
+ DictWord("是","是","shì","Là; đúng",1,"我是学生。"),
+ DictWord("不","不","bù","Không",1,"我不是老师。"),
+ DictWord("有","有","yǒu","Có; sở hữu",1,"我有一个问题。"),
+ DictWord("人","人","rén","Người",1,"那个人是谁？"),
+ DictWord("中国","中國","Zhōng guó","Trung Quốc",1,"我想去中国。"),
+ DictWord("越南","越南","Yuè nán","Việt Nam",1,"我来自越南。"),
+ DictWord("工作","工作","gōng zuò","Công việc; làm việc",2,"我在工厂工作。"),
+ DictWord("学习","學習","xué xí","Học tập",2,"我学习中文。"),
+ DictWord("学校","學校","xué xiào","Trường học",1,"学校很大。"),
+ DictWord("朋友","朋友","péng you","Bạn bè",1,"他是我的朋友。"),
+ DictWord("喜欢","喜歡","xǐ huan","Thích",1,"我喜欢运动。"),
+ DictWord("需要","需要","xū yào","Cần",2,"我需要帮助。"),
+ DictWord("时间","時間","shí jiān","Thời gian",2,"现在没有时间。"),
+ DictWord("问题","問題","wèn tí","Vấn đề; câu hỏi",2,"这个问题很简单。"),
+ DictWord("帮助","幫助","bāng zhù","Giúp đỡ",2,"谢谢你的帮助。"),
+ DictWord("今天","今天","jīn tiān","Hôm nay",1,"今天我很忙。"),
+ DictWord("明天","明天","míng tiān","Ngày mai",1,"明天见。"),
+ DictWord("昨天","昨天","zuó tiān","Hôm qua",1,"昨天我休息。"),
+ DictWord("现在","現在","xiàn zài","Bây giờ",1,"现在几点？"),
+ DictWord("因为","因為","yīn wèi","Bởi vì",2,"因为下雨，所以不去。"),
+ DictWord("所以","所以","suǒ yǐ","Cho nên",2,"我很累，所以想休息。"),
+ DictWord("觉得","覺得","jué de","Cảm thấy; cho rằng",2,"我觉得很好。"),
+ DictWord("可以","可以","kě yǐ","Có thể; được phép",1,"可以吗？"),
+ DictWord("但是","但是","dàn shì","Nhưng",2,"我想去，但是没时间。"),
+ DictWord("如果","如果","rú guǒ","Nếu",3,"如果有时间，我就去。"),
+ DictWord("完成","完成","wán chéng","Hoàn thành",3,"工作已经完成了。"),
+ DictWord("检查","檢查","jiǎn chá","Kiểm tra",3,"请检查一下。"),
+ DictWord("质量","質量","zhì liàng","Chất lượng",3,"我们要保证质量。"),
+ DictWord("安全","安全","ān quán","An toàn",3,"安全第一。"),
+ DictWord("生产","生產","shēng chǎn","Sản xuất",3,"今天生产很多产品。"),
+ DictWord("报告","報告","bào gào","Báo cáo",3,"我先报告一下。"),
+ DictWord("会议","會議","huì yì","Cuộc họp",3,"下午有一个会议。"),
+ DictWord("同意","同意","tóng yì","Đồng ý",3,"我同意你的意见。"),
+ DictWord("负责","負責","fù zé","Chịu trách nhiệm",3,"我负责这个项目。")
+)
+
+@Composable
+fun VocabularyScreen() {
+ val context=LocalContext.current
+ var search by rememberSaveable { mutableStateOf("") }
+ var level by rememberSaveable { mutableIntStateOf(0) }
+ var favorites by remember { mutableStateOf(setOf<String>()) }
+ var tts by remember { mutableStateOf<TextToSpeech?>(null) }
+ DisposableEffect(Unit) {
+  val engine=TextToSpeech(context) { status -> if(status==TextToSpeech.SUCCESS) tts?.language=Locale.SIMPLIFIED_CHINESE }
+  tts=engine
+  onDispose { engine.stop();engine.shutdown();tts=null }
+ }
+ val filtered=starterDictionary.filter { (level==0||it.level==level) && (search.isBlank()||it.hanziContains(search)||it.pinyin.contains(search.trim(),true)||it.meaning.contains(search.trim(),true)) }
+ Column(Modifier.fillMaxSize().padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+  Text("Từ điển TrungTalk",style=MaterialTheme.typography.headlineSmall)
+  Text("Tra nhanh từ Hán · Pinyin · nghĩa tiếng Việt",style=MaterialTheme.typography.bodySmall)
+  OutlinedTextField(search,{search=it},label={Text("Tìm Hán tự, Pinyin hoặc nghĩa")},modifier=Modifier.fillMaxWidth(),singleLine=true)
+  Row(horizontalArrangement=Arrangement.spacedBy(5.dp)) {
+   (0..3).forEach { lv -> FilterChip(selected=level==lv,onClick={level=lv},label={Text(if(lv==0)"Tất cả" else "HSK $lv")}) }
+  }
+  Text("Hiển thị ${filtered.size} từ · ${favorites.size} yêu thích",style=MaterialTheme.typography.labelMedium)
+  LazyColumn(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(7.dp)) {
+   items(filtered,key={it.hanzi}) { word ->
+    Card(Modifier.fillMaxWidth()) {
+     Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(5.dp)) {
+      Row(verticalAlignment= androidx.compose.ui.Alignment.CenterVertically) {
+       Text(word.hanzi,style=MaterialTheme.typography.headlineMedium,modifier=Modifier.weight(1f))
+       Text("HSK ${word.level}",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.primary)
+       IconButton(onClick={favorites=if(word.hanzi in favorites) favorites-word.hanzi else favorites+word.hanzi}) { Text(if(word.hanzi in favorites)"★" else "☆") }
+       IconButton(onClick={tts?.speak(word.hanzi,TextToSpeech.QUEUE_FLUSH,null,"vocab-${word.hanzi}")}) { Text("🔊") }
+      }
+      Text(word.traditional+" · "+word.pinyin,style=MaterialTheme.typography.titleMedium)
+      Text(word.meaning,style=MaterialTheme.typography.bodyLarge)
+      Text(word.example,style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.secondary)
+     }
+    }
+   }
+  }
+ }
+}
+private fun DictWord.hanziContains(q:String)=hanzi.contains(q.trim(),true)||traditional.contains(q.trim(),true)
