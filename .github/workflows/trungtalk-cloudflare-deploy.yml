@@ -1,5 +1,10 @@
 name: Deploy TrungTalk AI Worker and Build APK
 on:
+  push:
+    branches: [trungtalk-v1]
+    paths:
+      - 'TrungTalk/worker/**'
+      - '.github/workflows/trungtalk-cloudflare-deploy.yml'
   workflow_dispatch:
 permissions:
   contents: read
