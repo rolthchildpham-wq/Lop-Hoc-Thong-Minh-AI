@@ -289,7 +289,7 @@ private fun FlashcardScreen() {
  val context = LocalContext.current
  val dao = remember { com.trungtalk.data.db.TrungTalkDatabase.get(context).srsDao() }
  val scope = rememberCoroutineScope()
- LaunchedEffect(Unit) { deck.forEach { dao.save(com.trungtalk.data.db.SrsCard(cardId=it.hanzi)) } }
+ // Do not pre-write the entire deck on screen entry; persist only cards the learner reviews.
  var tts by remember { mutableStateOf<TextToSpeech?>(null) }
  var ready by remember { mutableStateOf(false) }
  DisposableEffect(Unit) {
