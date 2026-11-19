@@ -276,12 +276,15 @@ private val starterDictionary = listOf(
 @Composable
 fun VocabularyScreen() {
  val context=LocalContext.current
+ val srsDao=remember { TrungTalkDatabase.get(context).srsDao() }
+ val scope=rememberCoroutineScope()
+ val prefs=remember { context.getSharedPreferences("vocabulary_prefs",android.content.Context.MODE_PRIVATE) }
  var search by rememberSaveable { mutableStateOf("") }
  var level by rememberSaveable { mutableIntStateOf(0) }
- var favorites by remember { mutableStateOf(setOf<String>()) }
+ var favorites by remember { mutableStateOf(prefs.getStringSet("favorites",emptySet())?.toSet() ?: emptySet()) }
  var tts by remember { mutableStateOf<TextToSpeech?>(null) }
  DisposableEffect(Unit) {
-  val engine=TextToSpeech(context) { status -> if(status==TextToSpeech.SUCCESS) tts?.language=Locale.SIMPLIFIED_CHINESE }
+  val engine=TextToSpeech(context) { status -> if(status==TextToSpeech.SUCCESS) engineSafeLanguage(tts) }
   tts=engine
   onDispose { engine.stop();engine.shutdown();tts=null }
  }
@@ -301,16 +304,21 @@ fun VocabularyScreen() {
       Row(verticalAlignment= androidx.compose.ui.Alignment.CenterVertically) {
        Text(word.hanzi,style=MaterialTheme.typography.headlineMedium,modifier=Modifier.weight(1f))
        Text("HSK ${word.level}",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.primary)
-       IconButton(onClick={favorites=if(word.hanzi in favorites) favorites-word.hanzi else favorites+word.hanzi}) { Text(if(word.hanzi in favorites)"★" else "☆") }
+       IconButton(onClick={
+        val updated=if(word.hanzi in favorites) favorites-word.hanzi else favorites+word.hanzi
+        favorites=updated
+        prefs.edit().putStringSet("favorites",updated).apply()
+       }) { Text(if(word.hanzi in favorites)"★" else "☆") }
        IconButton(onClick={tts?.speak(word.hanzi,TextToSpeech.QUEUE_FLUSH,null,"vocab-${word.hanzi}")}) { Text("🔊") }
       }
       Text(word.traditional+" · "+word.pinyin,style=MaterialTheme.typography.titleMedium)
       Text(word.meaning,style=MaterialTheme.typography.bodyLarge)
       Text(word.example,style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.secondary)
+      OutlinedButton(onClick={scope.launch { srsDao.save(SrsCard(cardId=word.hanzi,box=1,dueAt=System.currentTimeMillis(),repetitions=0)) }},modifier=Modifier.fillMaxWidth()) { Text("＋ Thêm vào ôn tập SRS") }
      }
     }
    }
   }
  }
 }
-private fun DictWord.hanziContains(q:String)=hanzi.contains(q.trim(),true)||traditional.contains(q.trim(),true)
+private fun DictWord.hanziContains(q:String)=hanzi.contains(q.trim(),true)
