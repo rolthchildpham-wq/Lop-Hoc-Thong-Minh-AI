@@ -590,7 +590,7 @@ private fun AiScreen() {
             val message=input.trim(); input=""; error=""; history.add("user" to message); busy=true
             scope.launch {
                 try {
-                    val answer=com.trungtalk.ai.BackendClient(context).chat(history.dropLast(1).toList(),message)
+                    val answer=com.trungtalk.ai.BackendClient(context).chat(history.dropLast(1).takeLast(12).toList(),message)
                     history.add("assistant" to answer)
                 } catch(e:Exception) { error=e.message ?: "Không kết nối được AI." }
                 finally { busy=false }
