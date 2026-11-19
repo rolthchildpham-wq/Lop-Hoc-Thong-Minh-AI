@@ -16,7 +16,7 @@ function buildPrompt(path,payload) {
  }
  if(path==="/grammar") return teacher+" Hãy phân tích câu/từ sau theo: nghĩa, cấu trúc, lỗi thường gặp, 3 ví dụ kèm Pinyin và dịch. Trả JSON với keys explanation, examples, corrections. Nội dung: "+String(payload.prompt||"").slice(0,5000);
  if(path==="/evaluate") return teacher+" Hãy đánh giá câu trả lời học viên. Trả JSON gồm score 0-100, corrected, explanation_vi, better_answer, key_points. Đề bài và câu trả lời: "+String(payload.prompt||"").slice(0,5000);
- if(path==="/flashcard") return teacher+" Tạo 10 flashcard cho chủ đề "+String(payload.topic||"HSK 1")+"; trả JSON array, mỗi phần tử keys hanzi,pinyin,meaning_vi,example,example_pinyin,example_vi,category. Dùng từ phổ biến, chính xác.";
+ if(path==="/flashcard") { const count=Math.max(5,Math.min(20,Number(payload.count)||10)); const topic=String(payload.topic||"giao tiếp cơ bản").slice(0,120); const level=String(payload.level||"HSK 1").slice(0,40); return teacher+" Tạo chính xác "+count+" flashcard tiếng Trung cho chủ đề "+topic+" và cấp "+level+". Chỉ trả JSON array, không markdown. Mỗi object có keys hanzi,pinyin,meaning_vi,example,example_pinyin,example_vi,category,level,image_search_query,audio_text. image_search_query là cụm tìm ảnh thật cụ thể bằng tiếng Anh (2-5 từ), không dùng emoji; audio_text là câu chữ tiếng Trung để phát TTS. Từ/câu đúng trình độ, không trùng, ưu tiên từ thông dụng."; }
  return "";
 }
 export default {
