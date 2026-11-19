@@ -485,7 +485,9 @@ fun VocabularyScreen() {
       Text(word.traditional+" · "+word.pinyin,style=MaterialTheme.typography.titleMedium)
       Text(word.meaning,style=MaterialTheme.typography.bodyLarge)
       Text(word.example,style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.secondary)
-      OutlinedButton(onClick={scope.launch { srsDao.save(SrsCard(cardId=word.hanzi,box=1,dueAt=System.currentTimeMillis(),repetitions=0)) }},modifier=Modifier.fillMaxWidth()) { Text("＋ Thêm vào ôn tập SRS") }
+      OutlinedButton(onClick={scope.launch {
+   if(srsDao.get(word.hanzi)==null) srsDao.save(SrsCard(cardId=word.hanzi,box=1,dueAt=System.currentTimeMillis(),repetitions=0))
+  }},modifier=Modifier.fillMaxWidth()) { Text("＋ Thêm vào ôn tập SRS") }
      }
     }
    }
