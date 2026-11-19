@@ -31,8 +31,20 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
-      - name: Build installable Debug APK
-        run: gradle -p TrungTalk :app:assembleDebug --stacktrace -PBACKEND_URL="${{ vars.BACKEND_URL }}"
+      - name: Build installable Debug APK (retry transient Maven failures)
+        shell: bash
+        run: |
+          set +e
+          for attempt in 1 2 3 4; do
+            echo "Gradle build attempt $attempt/4"
+            gradle -p TrungTalk :app:assembleDebug --stacktrace -PBACKEND_URL="${{ vars.BACKEND_URL }}" && exit 0
+            status=$?
+            if [ "$attempt" -lt 4 ]; then
+              echo "Build failed (possibly Maven rate limit). Waiting 30 seconds before retry..."
+              sleep 30
+            fi
+          done
+          exit "$status"
       - name: Verify APK package and signature
         run: |
           APK=TrungTalk/app/build/outputs/apk/debug/app-debug.apk
