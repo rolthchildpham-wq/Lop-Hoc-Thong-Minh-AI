@@ -293,7 +293,7 @@ private fun FlashcardScreen() {
   val byHanzi=words.associateBy{it.hanzi}
   mutableStateListOf<Word>().apply {
    if(savedOrder!=null && savedOrder.size==words.size && savedOrder.all{it in byHanzi}) addAll(savedOrder.mapNotNull{byHanzi[it]})
-   else { addAll(words.shuffled()); reviewPrefs.edit().putString("deck_order",joinToString("|"){it.hanzi}).apply() }
+   else { addAll(words.shuffled()); reviewPrefs.edit().putString("deck_order",deck.joinToString("|"){it.hanzi}).apply() }
   }
  }
  val word = deck[index.coerceIn(0, deck.lastIndex)]
