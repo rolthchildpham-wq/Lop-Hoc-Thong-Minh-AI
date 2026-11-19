@@ -83,15 +83,27 @@ fun RoleplayScreen() {
   "Khách hàng phàn nàn" to "Bạn là khách hàng nhận 1000 sản phẩm có 50 sản phẩm lỗi. Phàn nàn và yêu cầu xử lý.",
   "Họp giao ban" to "Bạn là trưởng phòng, chủ trì họp tuần và hỏi báo cáo công việc."
  )
- var selected by rememberSaveable { mutableIntStateOf(0) }
+ val prefs=remember { ctx.getSharedPreferences("trungtalk_roleplay",android.content.Context.MODE_PRIVATE) }
+ var selected by rememberSaveable { mutableIntStateOf(prefs.getInt("selected_scenario",0).coerceIn(0,roles.lastIndex)) }
  var answer by rememberSaveable { mutableStateOf("") }
- var messages by remember { mutableStateOf<List<Pair<String,String>>>(emptyList()) }
+ fun loadSaved(scenario:Int):List<Pair<String,String>> {
+  return try {
+   val arr=org.json.JSONArray(prefs.getString("history_$scenario","[]"))
+   (0 until arr.length()).map { i -> val obj=arr.getJSONObject(i); obj.optString("role") to obj.optString("content") }
+  } catch(_:Exception){ emptyList() }
+ }
+ var messages by remember { mutableStateOf(loadSaved(selected)) }
  var error by rememberSaveable { mutableStateOf("") }
  var busy by remember { mutableStateOf(false) }
+ LaunchedEffect(selected,messages) {
+  val arr=org.json.JSONArray()
+  messages.forEach { (role,content) -> arr.put(org.json.JSONObject().put("role",role).put("content",content)) }
+  prefs.edit().putInt("selected_scenario",selected).putString("history_$selected",arr.toString()).apply()
+ }
  Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
   Text("Roleplay giao tiếp công việc",style=MaterialTheme.typography.headlineSmall)
   Text("Luyện hội thoại nhiều lượt. AI ghi nhớ các lượt nói trong tình huống hiện tại và phản hồi theo vai.")
-  roles.forEachIndexed{i,item-> FilterChip(selected==i,{selected=i;answer="";messages=emptyList();error=""},label={Text(item.first)})}
+  roles.forEachIndexed{i,item-> FilterChip(selected==i,{selected=i;answer="";messages=loadSaved(i);error=""},label={Text(item.first)})}
   Card(Modifier.fillMaxWidth()){Column(Modifier.padding(16.dp)){Text("Tình huống",style=MaterialTheme.typography.titleMedium);Text(roles[selected].second)}}
   messages.forEach { (role,content) ->
    Card(Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=if(role=="assistant") MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant)){
@@ -115,11 +127,11 @@ fun RoleplayScreen() {
    }
   },modifier=Modifier.fillMaxWidth()){Text(if(busy)"AI đang trả lời…" else "Gửi · tiếp tục hội thoại")}
   Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
-   OutlinedButton(onClick={messages=emptyList();answer="";error=""},modifier=Modifier.weight(1f)){Text("Làm lại")}
-   OutlinedButton(onClick={selected=(selected+1)%roles.size;messages=emptyList();answer="";error=""},modifier=Modifier.weight(1f)){Text("Đổi tình huống")}
+   OutlinedButton(onClick={messages=emptyList();answer="";error="";prefs.edit().remove("history_$selected").apply()},modifier=Modifier.weight(1f)){Text("Làm lại")}
+   OutlinedButton(onClick={selected=(selected+1)%roles.size;messages=loadSaved((selected+1)%roles.size);answer="";error=""},modifier=Modifier.weight(1f)){Text("Đổi tình huống")}
   }
   if(error.isNotBlank()) Text(error,color=MaterialTheme.colorScheme.error)
-  Text("Hội thoại chỉ được lưu trong màn hình hiện tại; rời màn hình có thể mất lịch sử.")
+  Text("Hội thoại được lưu trên thiết bị theo từng tình huống; mở lại ứng dụng vẫn có thể tiếp tục.")
  }
 }
 
