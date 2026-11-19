@@ -400,9 +400,11 @@ fun VocabularyScreen() {
  var favoritesOnly by rememberSaveable { mutableStateOf(false) }
  var tts by remember { mutableStateOf<TextToSpeech?>(null) }
  DisposableEffect(Unit) {
-  val engine=TextToSpeech(context) { status -> if(status==TextToSpeech.SUCCESS) tts?.language=Locale.SIMPLIFIED_CHINESE }
+  val engineRef=arrayOfNulls<TextToSpeech>(1)
+  val engine=TextToSpeech(context) { status -> if(status==TextToSpeech.SUCCESS) engineRef[0]?.language=Locale.SIMPLIFIED_CHINESE }
+  engineRef[0]=engine
   tts=engine
-  onDispose { engine.stop();engine.shutdown();tts=null }
+  onDispose { engine.stop();engine.shutdown();tts=null;engineRef[0]=null }
  }
  val filtered=starterDictionary.filter { (level==0||it.level==level) && (!favoritesOnly||it.hanzi in favorites) && (search.isBlank()||it.hanziContains(search)||it.traditional.contains(search.trim(),true)||it.pinyin.contains(search.trim(),true)||it.meaning.contains(search.trim(),true)) }
  Column(Modifier.fillMaxSize().padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
