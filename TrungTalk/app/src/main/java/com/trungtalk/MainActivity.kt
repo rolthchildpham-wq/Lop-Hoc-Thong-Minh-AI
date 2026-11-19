@@ -456,8 +456,9 @@ private fun FlashcardScreen() {
 }
 
 private fun transcriptSimilarity(expected: String, actual: String): Int {
-    val a = expected.filterNot { it.isWhitespace() }
-    val b = actual.filterNot { it.isWhitespace() }
+    // Ignore spaces and punctuation so speech-recognition formatting doesn't penalize the learner.
+    val a = expected.filter { it.isLetterOrDigit() }
+    val b = actual.filter { it.isLetterOrDigit() }
     if (a.isEmpty() || b.isEmpty()) return 0
     val dp = Array(a.length + 1) { IntArray(b.length + 1) }
     for (i in 0..a.length) dp[i][0] = i
