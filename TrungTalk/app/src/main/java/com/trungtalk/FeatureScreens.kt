@@ -14,30 +14,53 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun GrammarScreen() {
- val ctx= LocalContext.current
- val dao= remember { TrungTalkDatabase.get(ctx).grammarDao() }
- val history by dao.recent().collectAsState(initial= emptyList())
- val scope= rememberCoroutineScope()
- var word by remember { mutableStateOf("工作") }
- var pinyin by remember { mutableStateOf("gōng zuò") }
- var meaning by remember { mutableStateOf("công việc") }
- var sentence by remember { mutableStateOf("") }
+ val ctx=LocalContext.current
+ val dao=remember { TrungTalkDatabase.get(ctx).grammarDao() }
+ val history by dao.recent().collectAsState(initial=emptyList())
+ val scope=rememberCoroutineScope()
+ var word by rememberSaveable { mutableStateOf("工作") }
+ var pinyin by rememberSaveable { mutableStateOf("gōng zuò") }
+ var meaning by rememberSaveable { mutableStateOf("công việc") }
+ var sentence by rememberSaveable { mutableStateOf("") }
  var result by remember { mutableStateOf<GrammarEntry?>(null) }
+ var busy by remember { mutableStateOf(false) }
+ var error by rememberSaveable { mutableStateOf("") }
  Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement=Arrangement.spacedBy(10.dp)) {
-  Text("Ôn ngữ pháp tiếng Trung", style=MaterialTheme.typography.headlineSmall)
-  Text("Nhập câu của bạn để lưu lịch sử. Điểm hiện tại là gợi ý luyện tập cục bộ, không phải điểm AI.")
+  Text("AI luyện ngữ pháp tiếng Trung", style=MaterialTheme.typography.headlineSmall)
+  Text("AI phân tích câu theo ngữ cảnh, chấm điểm và đưa ra cách diễn đạt tự nhiên hơn.")
   OutlinedTextField(word,{word=it},label={Text("Từ mục tiêu")},modifier=Modifier.fillMaxWidth())
   OutlinedTextField(pinyin,{pinyin=it},label={Text("Pinyin")},modifier=Modifier.fillMaxWidth())
-  OutlinedTextField(meaning,{meaning=it},label={Text("Nghĩa")},modifier=Modifier.fillMaxWidth())
+  OutlinedTextField(meaning,{meaning=it},label={Text("Nghĩa tiếng Việt")},modifier=Modifier.fillMaxWidth())
   OutlinedTextField(sentence,{sentence=it},label={Text("Câu bạn tự đặt")},modifier=Modifier.fillMaxWidth(),minLines=3)
-  Button(enabled=sentence.isNotBlank(),onClick={
-   val score=when { sentence.contains(word)->85; sentence.length>=5->60; else->35 }
-   val correction=if(sentence.contains(word)) sentence else "$sentence（建议加入：$word）"
-   val feedback=if(sentence.contains(word)) "Đã có từ mục tiêu; hãy kiểm tra thêm trật tự từ và ngữ cảnh." else "Câu chưa có từ mục tiêu. Hãy thử đặt câu có chứa $word."
-   val item=GrammarEntry(targetWord=word,pinyin=pinyin,meaning=meaning,userSentence=sentence,practiceScore=score,correction=correction,feedback=feedback)
-   result=item; scope.launch { dao.insert(item) }
-  },modifier=Modifier.fillMaxWidth()){Text("Kiểm tra & lưu")}
-  result?.let { Card(Modifier.fillMaxWidth()){Column(Modifier.padding(16.dp)){Text("Điểm luyện tập: ${it.practiceScore}/100",style=MaterialTheme.typography.titleLarge);Text("Gợi ý: ${it.correction}");Text(it.feedback)}} }
+  Button(enabled=sentence.isNotBlank()&&!busy,onClick={
+   val prompt="Từ mục tiêu: $word ($pinyin), nghĩa: $meaning. Câu học viên: $sentence. Hãy đánh giá ngữ pháp và độ tự nhiên bằng tiếng Việt. Trả JSON gồm score (0-100), corrected (câu sửa bằng chữ Hán), explanation_vi (giải thích lỗi và điểm tốt), better_answer (một cách nói tự nhiên hơn), key_points (mảng 2-4 điểm). Chấm công bằng, không tự động cho điểm cao chỉ vì có từ mục tiêu."
+   busy=true;error="";result=null
+   scope.launch {
+    try {
+     val raw=BackendClient(ctx).evaluate(prompt).trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
+     val obj=org.json.JSONObject(raw)
+     val score=obj.optInt("score",0).coerceIn(0,100)
+     val corrected=obj.optString("corrected",sentence).ifBlank{sentence}
+     val explanation=obj.optString("explanation_vi","AI chưa đưa ra giải thích.")
+     val better=obj.optString("better_answer","")
+     val points=obj.optJSONArray("key_points")
+     val keyText=if(points!=null) (0 until points.length()).joinToString("\n"){ "• "+points.optString(it) } else ""
+     val feedback=listOf(explanation,if(better.isNotBlank()) "Cách nói tự nhiên hơn: $better" else "",keyText).filter{it.isNotBlank()}.joinToString("\n")
+     val entry=GrammarEntry(targetWord=word,pinyin=pinyin,meaning=meaning,userSentence=sentence,practiceScore=score,correction=corrected,feedback=feedback)
+     result=entry;dao.insert(entry)
+    } catch(e:Exception) { error=e.message ?: "Không thể phân tích. Hãy kiểm tra kết nối AI." }
+    finally { busy=false }
+   }
+  },modifier=Modifier.fillMaxWidth()){Text(if(busy)"AI đang phân tích…" else "✨ AI kiểm tra & lưu")}
+  if(error.isNotBlank()) Text(error,color=MaterialTheme.colorScheme.error)
+  result?.let { item ->
+   Card(Modifier.fillMaxWidth()){Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+    Text("Điểm đánh giá AI: ${item.practiceScore}/100",style=MaterialTheme.typography.titleLarge,color=MaterialTheme.colorScheme.primary)
+    LinearProgressIndicator(progress=item.practiceScore/100f,modifier=Modifier.fillMaxWidth())
+    Text("Câu sửa",style=MaterialTheme.typography.titleMedium);Text(item.correction)
+    Text("Phân tích",style=MaterialTheme.typography.titleMedium);Text(item.feedback)
+   }}
+  }
   Text("Lịch sử gần đây",style=MaterialTheme.typography.titleMedium)
   history.take(20).forEach { Text("• ${it.targetWord} · ${it.practiceScore}/100 · ${it.userSentence}") }
  }
