@@ -126,18 +126,46 @@ fun HskScreen() {
   Triple("工作 nghĩa là gì?",listOf("Nhà máy","Công việc","Chất lượng"),1),
   Triple("再见 nghĩa là gì?",listOf("Tạm biệt","Xin mời","Hôm nay"),0),
   Triple("水 nghĩa là gì?",listOf("Cơm","Nước","Trà"),1),
-  Triple("学校 nghĩa là gì?",listOf("Trường học","Công ty","Nhà"),0)
+  Triple("学校 nghĩa là gì?",listOf("Trường học","Công ty","Nhà"),0),
+  Triple("朋友 nghĩa là gì?",listOf("Bạn bè","Gia đình","Giáo viên"),0),
+  Triple("老师 nghĩa là gì?",listOf("Bác sĩ","Giáo viên","Công nhân"),1),
+  Triple("今天 nghĩa là gì?",listOf("Ngày mai","Hôm qua","Hôm nay"),2),
+  Triple("明天 nghĩa là gì?",listOf("Ngày mai","Hôm nay","Buổi tối"),0),
+  Triple("吃 nghĩa là gì?",listOf("Uống","Ăn","Ngủ"),1),
+  Triple("喝 nghĩa là gì?",listOf("Uống","Ăn","Đi"),0),
+  Triple("喜欢 nghĩa là gì?",listOf("Không thích","Muốn đi","Thích"),2),
+  Triple("中国 nghĩa là gì?",listOf("Việt Nam","Trung Quốc","Nhật Bản"),1),
+  Triple("越南 nghĩa là gì?",listOf("Việt Nam","Trung Quốc","Hàn Quốc"),0),
+  Triple("大 nghĩa là gì?",listOf("Nhỏ","Dài","To"),2),
+  Triple("小 nghĩa là gì?",listOf("To","Nhỏ","Cao"),1),
+  Triple("多少钱 nghĩa là gì?",listOf("Ở đâu?","Bao nhiêu tiền?","Mấy giờ?"),1),
+  Triple("现在 nghĩa là gì?",listOf("Bây giờ","Sau này","Hôm qua"),0),
+  Triple("工作忙 nghĩa là gì?",listOf("Đi chơi","Bận công việc","Tan làm"),1),
+  Triple("家 nghĩa là gì?",listOf("Trường học","Cửa hàng","Nhà"),2),
+  Triple("医院 nghĩa là gì?",listOf("Bệnh viện","Nhà máy","Nhà ga"),0),
+  Triple("买 nghĩa là gì?",listOf("Bán","Mua","Đổi"),1),
+  Triple("再 nghĩa là gì?",listOf("Không","Đã","Lại / thêm lần nữa"),2)
  )
- var index by remember { mutableIntStateOf(0) }; var score by remember { mutableIntStateOf(0) }; var chosen by remember { mutableIntStateOf(-1) }
- val q=questions[index%questions.size]
- Column(Modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-  Text("Luyện đề HSK",style=MaterialTheme.typography.headlineSmall)
-  Text("Bộ câu hỏi mẫu hiện có 6 câu minh họa, chưa phải ngân hàng 500 câu/cấp trong đề cương.")
-  Text("Câu ${index+1} · Đúng ${score}")
-  Text(q.first,style=MaterialTheme.typography.headlineMedium)
-  q.second.forEachIndexed{i,v->OutlinedButton(onClick={if(chosen<0){chosen=i;if(i==q.third)score++}},modifier=Modifier.fillMaxWidth()){Text(v)}}
-  if(chosen>=0) Text(if(chosen==q.third)"Chính xác!" else "Đáp án: ${q.second[q.third]}")
-  Button(onClick={index++;chosen=-1},modifier=Modifier.fillMaxWidth()){Text("Câu tiếp theo")}
+ var index by remember { mutableIntStateOf(0) }
+ var score by remember { mutableIntStateOf(0) }
+ var chosen by remember { mutableIntStateOf(-1) }
+ val finished=index>=questions.size
+ Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+  Text("Luyện từ vựng HSK",style=MaterialTheme.typography.headlineSmall)
+  if(finished){
+   Text("Hoàn thành ${questions.size} câu!",style=MaterialTheme.typography.titleLarge)
+   Text("Kết quả: $score/${questions.size} · ${score*100/questions.size}%")
+   LinearProgressIndicator(progress=score.toFloat()/questions.size,modifier=Modifier.fillMaxWidth())
+   Button(onClick={index=0;score=0;chosen=-1},modifier=Modifier.fillMaxWidth()){Text("Làm bài mới")}
+  }else{
+   val q=questions[index]
+   Text("Câu ${index+1}/${questions.size} · Đúng $score")
+   LinearProgressIndicator(progress=index.toFloat()/questions.size,modifier=Modifier.fillMaxWidth())
+   Text(q.first,style=MaterialTheme.typography.headlineMedium)
+   q.second.forEachIndexed{i,v->OutlinedButton(onClick={if(chosen<0){chosen=i;if(i==q.third)score++}},modifier=Modifier.fillMaxWidth(),enabled=chosen<0){Text(v)}}
+   if(chosen>=0) Text(if(chosen==q.third)"Chính xác! 🎉" else "Chưa đúng. Đáp án: ${q.second[q.third]}",color=if(chosen==q.third)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+   Button(enabled=chosen>=0,onClick={index++;chosen=-1},modifier=Modifier.fillMaxWidth()){Text(if(index==questions.lastIndex)"Xem kết quả" else "Câu tiếp theo")}
+  }
  }
 }
 
