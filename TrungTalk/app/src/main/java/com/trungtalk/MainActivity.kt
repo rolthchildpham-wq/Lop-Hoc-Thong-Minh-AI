@@ -284,6 +284,7 @@ private fun FlashcardScreen() {
  var repeatCount by rememberSaveable { mutableIntStateOf(3) }
  var pauseSeconds by rememberSaveable { mutableIntStateOf(2) }
  var autoListening by rememberSaveable { mutableStateOf(false) }
+ var savingReview by remember { mutableStateOf(false) }
  val deck = remember { mutableStateListOf<Word>().apply { addAll(words.shuffled()) } }
  val word = deck[index.coerceIn(0, deck.lastIndex)]
  val context = LocalContext.current
@@ -361,17 +362,30 @@ private fun FlashcardScreen() {
   },modifier=Modifier.fillMaxWidth()) { Text("🔁 Nghe lặp: từ → Pinyin → ví dụ") }
   if(autoListening) OutlinedButton(onClick={autoListening=false;tts?.stop()},modifier=Modifier.fillMaxWidth()){Text("Dừng nghe lặp")}
   Row(horizontalArrangement=Arrangement.spacedBy(6.dp),modifier=Modifier.fillMaxWidth()) {
-   OutlinedButton(modifier=Modifier.weight(1f),onClick={
-    again++; show=false
-    scope.launch { dao.save(com.trungtalk.data.db.SrsCard(cardId=word.hanzi,box=1,dueAt=System.currentTimeMillis()+10*60*1000,repetitions=0)) }
-    index=(index+1)%deck.size
-   }){Text("Chưa nhớ")}
-   Button(modifier=Modifier.weight(1f),onClick={
-    mastered++;show=false
-    val box=mastered.coerceAtMost(5); val days=listOf(1,1,3,7,14,30)[box]
-    scope.launch { dao.save(com.trungtalk.data.db.SrsCard(cardId=word.hanzi,box=box,dueAt=System.currentTimeMillis()+days*86400000L,repetitions=mastered)) }
-    index=(index+1)%deck.size
-   }){Text("Đã nhớ ✓")}
+   OutlinedButton(enabled=!savingReview,modifier=Modifier.weight(1f),onClick={
+    savingReview=true
+    scope.launch {
+     try {
+      dao.save(com.trungtalk.data.db.SrsCard(cardId=word.hanzi,box=1,dueAt=System.currentTimeMillis()+10*60*1000,repetitions=0))
+      again++;show=false;index=(index+1)%deck.size
+     } catch(e:Exception) { aiError="Không lưu được lịch ôn tập: " + (e.message ?: "thử lại") }
+     finally { savingReview=false }
+    }
+   }){Text(if(savingReview) "Đang lưu…" else "Chưa nhớ")}
+   Button(enabled=!savingReview,modifier=Modifier.weight(1f),onClick={
+    savingReview=true
+    scope.launch {
+     try {
+      val previous=dao.get(word.hanzi)
+      val box=((previous?.box ?: 0)+1).coerceIn(1,5)
+      val repetitions=(previous?.repetitions ?: 0)+1
+      val days=listOf(1,3,7,14,30)[box-1]
+      dao.save(com.trungtalk.data.db.SrsCard(cardId=word.hanzi,box=box,dueAt=System.currentTimeMillis()+days*86400000L,repetitions=repetitions))
+      mastered++;show=false;index=(index+1)%deck.size
+     } catch(e:Exception) { aiError="Không lưu được lịch ôn tập: " + (e.message ?: "thử lại") }
+     finally { savingReview=false }
+    }
+   }){Text(if(savingReview) "Đang lưu…" else "Đã nhớ ✓")}
   }
   Row(horizontalArrangement=Arrangement.spacedBy(8.dp),modifier=Modifier.fillMaxWidth()) {
    TextButton(onClick={index=(index-1+deck.size)%deck.size;show=false},modifier=Modifier.weight(1f)){Text("← Trước")}
