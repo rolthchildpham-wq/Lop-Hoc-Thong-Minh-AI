@@ -235,11 +235,13 @@ fun SrsScreen() {
  val allCards by dao.all().collectAsState(initial=emptyList())
  var due by remember{mutableStateOf<List<SrsCard>>(emptyList())}
  var busy by remember{mutableStateOf(false)}
+ var reviewError by remember{mutableStateOf("")}
  LaunchedEffect(Unit){due=dao.due()}
  val intervals=listOf(1,3,7,14,30)
  Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
   Text("Ôn tập SRS – Leitner",style=MaterialTheme.typography.headlineSmall)
   Text("Thẻ đến hạn hôm nay: ${due.size}",style=MaterialTheme.typography.titleMedium)
+  if(reviewError.isNotBlank()) Text(reviewError,color=MaterialTheme.colorScheme.error)
   Text("Tổng ${allCards.size} thẻ · Hộp 1: ${allCards.count{it.box==1}} · Hộp 2–4: ${allCards.count{it.box in 2..4}} · Hộp 5: ${allCards.count{it.box>=5}}",style=MaterialTheme.typography.bodyMedium)
   Text("Chưa nhớ → ôn lại sau 10 phút, về hộp 1. Đã nhớ → tăng hộp và giãn lịch 1, 3, 7, 14, 30 ngày.")
   if(due.isEmpty()) {
@@ -271,14 +273,20 @@ fun SrsScreen() {
    val nextDays=intervals[card.box.coerceIn(1,5)-1]
    Text("Nếu nhớ: lần ôn tiếp theo sau ${nextDays} ngày")
    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
-    OutlinedButton(enabled=!busy,onClick={busy=true;scope.launch{
-     dao.save(card.copy(box=1,dueAt=System.currentTimeMillis()+10*60*1000,repetitions=card.repetitions+1))
-     due=dao.due();busy=false
+    OutlinedButton(enabled=!busy,onClick={busy=true;reviewError="";scope.launch{
+     try {
+      dao.save(card.copy(box=1,dueAt=System.currentTimeMillis()+10*60*1000,repetitions=card.repetitions+1))
+      due=dao.due()
+     } catch(e:Exception) { reviewError=e.message ?: "Không lưu được tiến độ ôn." }
+     finally { busy=false }
     }},modifier=Modifier.weight(1f)){Text("Chưa nhớ · 10 phút")}
-    Button(enabled=!busy,onClick={busy=true;scope.launch{
-     val b=nextBox
-     dao.save(card.copy(box=b,dueAt=System.currentTimeMillis()+nextDays*86400000L,repetitions=card.repetitions+1))
-     due=dao.due();busy=false
+    Button(enabled=!busy,onClick={busy=true;reviewError="";scope.launch{
+     try {
+      val b=nextBox
+      dao.save(card.copy(box=b,dueAt=System.currentTimeMillis()+nextDays*86400000L,repetitions=card.repetitions+1))
+      due=dao.due()
+     } catch(e:Exception) { reviewError=e.message ?: "Không lưu được tiến độ ôn." }
+     finally { busy=false }
     }},modifier=Modifier.weight(1f)){Text("Đã nhớ · +${nextDays} ngày")}
    }
   }}}
