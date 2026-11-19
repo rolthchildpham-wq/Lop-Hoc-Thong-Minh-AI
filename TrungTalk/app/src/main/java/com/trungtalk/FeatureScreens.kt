@@ -128,7 +128,7 @@ fun RoleplayScreen() {
   },modifier=Modifier.fillMaxWidth()){Text(if(busy)"AI đang trả lời…" else "Gửi · tiếp tục hội thoại")}
   Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
    OutlinedButton(onClick={messages=emptyList();answer="";error="";prefs.edit().remove("history_$selected").apply()},modifier=Modifier.weight(1f)){Text("Làm lại")}
-   OutlinedButton(onClick={selected=(selected+1)%roles.size;messages=loadSaved((selected+1)%roles.size);answer="";error=""},modifier=Modifier.weight(1f)){Text("Đổi tình huống")}
+   OutlinedButton(onClick={val next=(selected+1)%roles.size;selected=next;messages=loadSaved(next);answer="";error=""},modifier=Modifier.weight(1f)){Text("Đổi tình huống")}
   }
   if(error.isNotBlank()) Text(error,color=MaterialTheme.colorScheme.error)
   Text("Hội thoại được lưu trên thiết bị theo từng tình huống; mở lại ứng dụng vẫn có thể tiếp tục.")
