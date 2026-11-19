@@ -231,6 +231,7 @@ fun SrsScreen() {
  val ctx=LocalContext.current
  val dao=remember{TrungTalkDatabase.get(ctx).srsDao()}
  val scope=rememberCoroutineScope()
+ val aiPrefs=remember{ctx.getSharedPreferences("trungtalk_flashcard_progress",android.content.Context.MODE_PRIVATE)}
  var due by remember{mutableStateOf<List<SrsCard>>(emptyList())}
  var busy by remember{mutableStateOf(false)}
  LaunchedEffect(Unit){due=dao.due()}
@@ -245,11 +246,23 @@ fun SrsScreen() {
   }
   due.forEach{card->Card(Modifier.fillMaxWidth()){Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
    Text(card.cardId,style=MaterialTheme.typography.titleLarge)
-   starterDictionary.firstOrNull { it.hanzi == card.cardId }?.let { word ->
-   Text(word.pinyin,style=MaterialTheme.typography.titleMedium,color=MaterialTheme.colorScheme.primary)
-   Text(word.meaning,style=MaterialTheme.typography.bodyLarge)
-   Text("Ví dụ: ${word.example}",style=MaterialTheme.typography.bodyMedium)
-  }
+   val dictionaryWord=starterDictionary.firstOrNull { it.hanzi == card.cardId }
+   if(dictionaryWord!=null) {
+    Text(dictionaryWord.pinyin,style=MaterialTheme.typography.titleMedium,color=MaterialTheme.colorScheme.primary)
+    Text(dictionaryWord.meaning,style=MaterialTheme.typography.bodyLarge)
+    Text("Ví dụ: ${dictionaryWord.example}",style=MaterialTheme.typography.bodyMedium)
+   } else {
+    val aiWord=runCatching {
+     val saved=org.json.JSONArray(aiPrefs.getString("ai_cards_json","[]"))
+     (0 until saved.length()).mapNotNull { i -> saved.optJSONObject(i) }.firstOrNull { it.optString("hanzi")==card.cardId }
+    }.getOrNull()
+    if(aiWord!=null) {
+     Text(aiWord.optString("pinyin"),style=MaterialTheme.typography.titleMedium,color=MaterialTheme.colorScheme.primary)
+     Text(aiWord.optString("meaning"),style=MaterialTheme.typography.bodyLarge)
+     val example=aiWord.optString("example")
+     if(example.isNotBlank()) Text("Ví dụ: $example",style=MaterialTheme.typography.bodyMedium)
+    }
+   }
   Text("Hộp ${card.box.coerceIn(1,5)} · Đã ôn ${card.repetitions} lần")
    val nextBox=(card.box+1).coerceAtMost(5)
    val nextDays=intervals[nextBox-1]
