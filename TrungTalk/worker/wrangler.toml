@@ -8,3 +8,5 @@ workers_dev = true
 # [[kv_namespaces]]
 # binding = "RATE_LIMIT"
 # id = "YOUR_KV_NAMESPACE_ID"
+
+# Deployment pipeline enabled 2026-11-19.
