@@ -208,7 +208,12 @@ fun SrsScreen() {
   }
   due.forEach{card->Card(Modifier.fillMaxWidth()){Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
    Text(card.cardId,style=MaterialTheme.typography.titleLarge)
-   Text("Hộp ${card.box.coerceIn(1,5)} · Đã ôn ${card.repetitions} lần")
+   starterDictionary.firstOrNull { it.hanzi == card.cardId }?.let { word ->
+   Text(word.pinyin,style=MaterialTheme.typography.titleMedium,color=MaterialTheme.colorScheme.primary)
+   Text(word.meaning,style=MaterialTheme.typography.bodyLarge)
+   Text("Ví dụ: ${word.example}",style=MaterialTheme.typography.bodyMedium)
+  }
+  Text("Hộp ${card.box.coerceIn(1,5)} · Đã ôn ${card.repetitions} lần")
    val nextBox=(card.box+1).coerceAtMost(5)
    val nextDays=intervals[nextBox-1]
    Text("Nếu nhớ: lần ôn tiếp theo sau ${nextDays} ngày")
@@ -282,13 +287,14 @@ fun VocabularyScreen() {
  var search by rememberSaveable { mutableStateOf("") }
  var level by rememberSaveable { mutableIntStateOf(0) }
  var favorites by remember { mutableStateOf(prefs.getStringSet("favorites",emptySet())?.toSet() ?: emptySet()) }
+ var favoritesOnly by rememberSaveable { mutableStateOf(false) }
  var tts by remember { mutableStateOf<TextToSpeech?>(null) }
  DisposableEffect(Unit) {
   val engine=TextToSpeech(context) { status -> if(status==TextToSpeech.SUCCESS) tts?.language=Locale.SIMPLIFIED_CHINESE }
   tts=engine
   onDispose { engine.stop();engine.shutdown();tts=null }
  }
- val filtered=starterDictionary.filter { (level==0||it.level==level) && (search.isBlank()||it.hanziContains(search)||it.pinyin.contains(search.trim(),true)||it.meaning.contains(search.trim(),true)) }
+ val filtered=starterDictionary.filter { (level==0||it.level==level) && (!favoritesOnly||it.hanzi in favorites) && (search.isBlank()||it.hanziContains(search)||it.traditional.contains(search.trim(),true)||it.pinyin.contains(search.trim(),true)||it.meaning.contains(search.trim(),true)) }
  Column(Modifier.fillMaxSize().padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
   Text("Từ điển TrungTalk",style=MaterialTheme.typography.headlineSmall)
   Text("Tra nhanh từ Hán · Pinyin · nghĩa tiếng Việt",style=MaterialTheme.typography.bodySmall)
@@ -296,7 +302,10 @@ fun VocabularyScreen() {
   Row(horizontalArrangement=Arrangement.spacedBy(5.dp)) {
    (0..3).forEach { lv -> FilterChip(selected=level==lv,onClick={level=lv},label={Text(if(lv==0)"Tất cả" else "HSK $lv")}) }
   }
-  Text("Hiển thị ${filtered.size} từ · ${favorites.size} yêu thích",style=MaterialTheme.typography.labelMedium)
+  Row(verticalAlignment= androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+   Text("Hiển thị ${filtered.size} từ · ${favorites.size} yêu thích",style=MaterialTheme.typography.labelMedium,modifier=Modifier.weight(1f))
+   FilterChip(selected=favoritesOnly,onClick={favoritesOnly=!favoritesOnly},label={Text(if(favoritesOnly)"★ Đang lọc" else "★ Yêu thích")})
+  }
   LazyColumn(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(7.dp)) {
    items(filtered,key={it.hanzi}) { word ->
     Card(Modifier.fillMaxWidth()) {
