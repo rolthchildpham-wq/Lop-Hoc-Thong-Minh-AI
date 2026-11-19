@@ -8,9 +8,11 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+# Each commit gets its own build group so Android builds are never cancelled
+# by newer commits. APK artifacts can be traced to their exact source SHA.
 concurrency:
-  group: trungtalk-android-${{ github.ref }}
-  cancel-in-progress: true
+  group: trungtalk-android-${{ github.sha }}
+  cancel-in-progress: false
 jobs:
   debug-apk:
     runs-on: ubuntu-24.04
