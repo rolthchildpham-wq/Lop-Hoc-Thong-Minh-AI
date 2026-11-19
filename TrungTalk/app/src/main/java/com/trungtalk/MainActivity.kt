@@ -97,7 +97,7 @@ private fun TrungTalkApp() {
     Scaffold(bottomBar = {
         if (route in tabs) NavigationBar {
             listOf(Triple("home","⌂","Học"),Triple("flashcards","▤","Thẻ"),Triple("speaking","◉","Nói"),Triple("stats","▥","Tiến độ"),Triple("ai","✦","AI")).forEach { item ->
-                NavigationBarItem(selected = route == item.first, onClick = { nav.navigate(item.first) { popUpTo("home") { saveState = true }; launchSingleTop = true; restoreState = true } }, icon = { Text(item.second) }, label = { Text(item.third) })
+                NavigationBarItem(selected = route == item.first, onClick = { if (route != item.first) nav.navigate(item.first) { popUpTo("home") { saveState = false }; launchSingleTop = true; restoreState = false } }, icon = { Text(item.second) }, label = { Text(item.third) })
             }
         }
     }) { padding ->
@@ -308,8 +308,8 @@ private fun FlashcardScreen() {
   Text("Flashcard TrungTalk · AI",style=MaterialTheme.typography.headlineSmall)
   Text("Thẻ ${index+1}/${deck.size} · Đã nhớ: $mastered · Ôn lại: $again")
   LinearProgressIndicator(progress=(index+1).toFloat()/deck.size,modifier=Modifier.fillMaxWidth())
-  Card(Modifier.fillMaxWidth().heightIn(min=220.dp).clickable{show=!show}) {
-   Column(Modifier.fillMaxWidth().heightIn(min=188.dp).padding(16.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center) {
+  Card(Modifier.fillMaxWidth().heightIn(min=220.dp).clickable { show = !show }) {
+   Column(Modifier.fillMaxWidth().heightIn(min=188.dp).clickable { show = !show }.padding(16.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center) {
     Text(word.category,style=MaterialTheme.typography.labelLarge,color=MaterialTheme.colorScheme.secondary)
     Text(word.hanzi,style=MaterialTheme.typography.displayLarge,color=MaterialTheme.colorScheme.primary)
     if(show) {
@@ -323,6 +323,7 @@ private fun FlashcardScreen() {
     } else Text("Chạm để lật thẻ · nghe trước khi xem đáp án")
    }
   }
+  FilledTonalButton(onClick={show=!show},modifier=Modifier.fillMaxWidth()) { Text(if(show) "Ẩn đáp án" else "Lật thẻ / Xem đáp án") }
   Row(horizontalArrangement=Arrangement.spacedBy(6.dp),modifier=Modifier.fillMaxWidth()) {
    OutlinedButton(enabled=ready,modifier=Modifier.weight(1f),onClick={speak(word.hanzi)}){Text("🔊 Từ")}
    OutlinedButton(enabled=ready,modifier=Modifier.weight(1f),onClick={speak(word.example)}){Text("▶ Ví dụ")}
@@ -362,13 +363,13 @@ private fun FlashcardScreen() {
   Row(horizontalArrangement=Arrangement.spacedBy(6.dp),modifier=Modifier.fillMaxWidth()) {
    OutlinedButton(modifier=Modifier.weight(1f),onClick={
     again++; show=false
-    kotlinx.coroutines.MainScope().launch { dao.save(com.trungtalk.data.db.SrsCard(cardId=word.hanzi,box=1,dueAt=System.currentTimeMillis()+10*60*1000,repetitions=0)) }
+    scope.launch { dao.save(com.trungtalk.data.db.SrsCard(cardId=word.hanzi,box=1,dueAt=System.currentTimeMillis()+10*60*1000,repetitions=0)) }
     index=(index+1)%deck.size
    }){Text("Chưa nhớ")}
    Button(modifier=Modifier.weight(1f),onClick={
     mastered++;show=false
     val box=mastered.coerceAtMost(5); val days=listOf(1,1,3,7,14,30)[box]
-    kotlinx.coroutines.MainScope().launch { dao.save(com.trungtalk.data.db.SrsCard(cardId=word.hanzi,box=box,dueAt=System.currentTimeMillis()+days*86400000L,repetitions=mastered)) }
+    scope.launch { dao.save(com.trungtalk.data.db.SrsCard(cardId=word.hanzi,box=box,dueAt=System.currentTimeMillis()+days*86400000L,repetitions=mastered)) }
     index=(index+1)%deck.size
    }){Text("Đã nhớ ✓")}
   }
