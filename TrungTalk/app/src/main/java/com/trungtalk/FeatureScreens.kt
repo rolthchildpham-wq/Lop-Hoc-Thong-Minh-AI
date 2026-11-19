@@ -284,7 +284,7 @@ fun VocabularyScreen() {
  var favorites by remember { mutableStateOf(prefs.getStringSet("favorites",emptySet())?.toSet() ?: emptySet()) }
  var tts by remember { mutableStateOf<TextToSpeech?>(null) }
  DisposableEffect(Unit) {
-  val engine=TextToSpeech(context) { status -> if(status==TextToSpeech.SUCCESS) engineSafeLanguage(tts) }
+  val engine=TextToSpeech(context) { status -> if(status==TextToSpeech.SUCCESS) tts?.language=Locale.SIMPLIFIED_CHINESE }
   tts=engine
   onDispose { engine.stop();engine.shutdown();tts=null }
  }
