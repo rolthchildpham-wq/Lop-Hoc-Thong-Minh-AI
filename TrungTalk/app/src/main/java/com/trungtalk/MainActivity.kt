@@ -564,8 +564,17 @@ private fun AiScreen() {
     var input by rememberSaveable { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
+    var confirmClear by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("Gia sư AI TrungTalk", style = MaterialTheme.typography.headlineSmall)
+        TextButton(onClick = { confirmClear = true }, enabled = history.isNotEmpty() && !busy) { Text("Xóa lịch sử hội thoại") }
+        if (confirmClear) AlertDialog(
+            onDismissRequest = { confirmClear = false },
+            title = { Text("Xóa lịch sử AI?") },
+            text = { Text("Toàn bộ hội thoại đã lưu trên thiết bị sẽ bị xóa. Thao tác này không thể hoàn tác.") },
+            confirmButton = { TextButton(onClick = { history.clear(); aiPrefs.edit().remove("history").apply(); error = ""; confirmClear = false }) { Text("Xóa") } },
+            dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Hủy") } }
+        )
         Text("Hỏi bằng tiếng Việt hoặc tiếng Trung. Cần triển khai Worker và đặt BACKEND_URL khi build.")
         androidx.compose.foundation.lazy.LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(history) { item ->
