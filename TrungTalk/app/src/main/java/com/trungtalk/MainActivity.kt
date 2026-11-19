@@ -244,44 +244,98 @@ private fun PrinciplesScreen(nav: NavController) {
     }
 }
 
-private data class Word(val hanzi: String, val pinyin: String, val meaning: String, val illustration: String)
+private data class Word(val hanzi: String, val pinyin: String, val meaning: String, val illustration: String, val example: String, val examplePinyin: String, val exampleMeaning: String, val category: String)
 private val words = listOf(
-    Word("你好","nǐ hǎo","Xin chào","👋"), Word("谢谢","xiè xie","Cảm ơn","🙏"), Word("请","qǐng","Xin mời / vui lòng","🙋"),
-    Word("工作","gōng zuò","Công việc","💼"), Word("工厂","gōng chǎng","Nhà máy","🏭"), Word("质量","zhì liàng","Chất lượng","⭐"),
-    Word("数量","shù liàng","Số lượng","🔢"), Word("完成","wán chéng","Hoàn thành","✅"), Word("检查","jiǎn chá","Kiểm tra","🔍"),
-    Word("交货期","jiāo huò qī","Thời hạn giao hàng","📅")
+ Word("你好","nǐ hǎo","Xin chào","👋","你好！很高兴认识你。","Nǐ hǎo! Hěn gāoxìng rènshi nǐ.","Xin chào! Rất vui được gặp bạn.","Giao tiếp"),
+ Word("谢谢","xiè xie","Cảm ơn","🙏","谢谢你的帮助。","Xièxie nǐ de bāngzhù.","Cảm ơn sự giúp đỡ của bạn.","Giao tiếp"),
+ Word("请","qǐng","Xin mời / vui lòng","🙋","请坐。","Qǐng zuò.","Mời ngồi.","Giao tiếp"),
+ Word("再见","zài jiàn","Tạm biệt","👋","明天再见。","Míngtiān zàijiàn.","Ngày mai gặp lại.","Giao tiếp"),
+ Word("工作","gōng zuò","Công việc","💼","我在这里工作。","Wǒ zài zhèlǐ gōngzuò.","Tôi làm việc ở đây.","Công việc"),
+ Word("工厂","gōng chǎng","Nhà máy","🏭","这个工厂很大。","Zhège gōngchǎng hěn dà.","Nhà máy này rất lớn.","Công việc"),
+ Word("质量","zhì liàng","Chất lượng","⭐","我们要保证质量。","Wǒmen yào bǎozhèng zhìliàng.","Chúng ta phải đảm bảo chất lượng.","Công việc"),
+ Word("数量","shù liàng","Số lượng","🔢","请确认数量。","Qǐng quèrèn shùliàng.","Vui lòng xác nhận số lượng.","Công việc"),
+ Word("完成","wán chéng","Hoàn thành","✅","工作已经完成。","Gōngzuò yǐjīng wánchéng.","Công việc đã hoàn thành.","Công việc"),
+ Word("检查","jiǎn chá","Kiểm tra","🔍","请检查一下。","Qǐng jiǎnchá yíxià.","Vui lòng kiểm tra một chút.","Công việc"),
+ Word("会议","huì yì","Cuộc họp","🗣️","下午我们有会议。","Xiàwǔ wǒmen yǒu huìyì.","Chiều nay chúng ta có cuộc họp.","Công việc"),
+ Word("时间","shí jiān","Thời gian","⏰","你什么时候有时间？","Nǐ shénme shíhou yǒu shíjiān?","Khi nào bạn có thời gian?","Cơ bản"),
+ Word("今天","jīn tiān","Hôm nay","☀️","今天很忙。","Jīntiān hěn máng.","Hôm nay rất bận.","Cơ bản"),
+ Word("明天","míng tiān","Ngày mai","🌅","明天见。","Míngtiān jiàn.","Ngày mai gặp.","Cơ bản"),
+ Word("学习","xué xí","Học tập","📚","我学习中文。","Wǒ xuéxí Zhōngwén.","Tôi học tiếng Trung.","Cơ bản"),
+ Word("朋友","péng you","Bạn bè","🤝","他是我的朋友。","Tā shì wǒ de péngyou.","Anh ấy là bạn tôi.","Cơ bản"),
+ Word("问题","wèn tí","Vấn đề / câu hỏi","❓","这个问题很重要。","Zhège wèntí hěn zhòngyào.","Vấn đề này rất quan trọng.","Cơ bản"),
+ Word("解决","jiě jué","Giải quyết","🛠️","我们一起解决问题。","Wǒmen yìqǐ jiějué wèntí.","Chúng ta cùng giải quyết vấn đề.","Công việc"),
+ Word("需要","xū yào","Cần","📌","我需要你的帮助。","Wǒ xūyào nǐ de bāngzhù.","Tôi cần sự giúp đỡ của bạn.","Cơ bản"),
+ Word("加油","jiā yóu","Cố lên","💪","加油！你可以做到。","Jiāyóu! Nǐ kěyǐ zuòdào.","Cố lên! Bạn làm được.","Giao tiếp")
 )
 
 @Composable
 private fun FlashcardScreen() {
-    var index by rememberSaveable { mutableIntStateOf(0) }
-    var show by rememberSaveable { mutableStateOf(false) }
-    var remembered by rememberSaveable { mutableIntStateOf(0) }
-    var retry by rememberSaveable { mutableIntStateOf(0) }
-    val word = words[index % words.size]
-    val context = LocalContext.current
-    LaunchedEffect(Unit) { val srs = com.trungtalk.data.db.TrungTalkDatabase.get(context).srsDao(); words.forEach { srs.save(com.trungtalk.data.db.SrsCard(cardId = it.hanzi)) } }
-    var tts by remember { mutableStateOf<TextToSpeech?>(null) }
-    var ready by remember { mutableStateOf(false) }
-    DisposableEffect(Unit) {
-        tts = TextToSpeech(context) { status -> ready = status == TextToSpeech.SUCCESS; if (status == TextToSpeech.SUCCESS) tts?.language = Locale.SIMPLIFIED_CHINESE }
-        onDispose { tts?.shutdown(); tts = null }
-    }
-    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Text("Flashcard · Từ vựng nền tảng", style = MaterialTheme.typography.headlineSmall)
-        Text("Thẻ " + ((index % words.size) + 1) + "/" + words.size + " · Đã nhớ: " + remembered + " · Ôn lại: " + retry)
-        Card(Modifier.fillMaxWidth().weight(1f).clickable { show = !show }) {
-            Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                Text(word.illustration, style = MaterialTheme.typography.displayMedium)
-                Text(word.hanzi, style = MaterialTheme.typography.displayLarge, color = MaterialTheme.colorScheme.primary)
-                if (show) { Text(word.pinyin, style = MaterialTheme.typography.headlineSmall); Text(word.meaning, style = MaterialTheme.typography.titleLarge) }
-                else Text("Chạm thẻ để xem Pinyin và nghĩa")
-                OutlinedButton(enabled = ready, onClick = { tts?.speak(word.hanzi, TextToSpeech.QUEUE_FLUSH, null, "card") }) { Text("🔊 Nghe phát âm") }
-            }
-        }
-        Button(onClick = { remembered++; index++; show = false }, modifier = Modifier.fillMaxWidth()) { Text("Đã nhớ · Sang thẻ tiếp") }
-        OutlinedButton(onClick = { retry++; index++; show = false }, modifier = Modifier.fillMaxWidth()) { Text("Chưa nhớ · Ôn lại sau") }
-    }
+ var index by rememberSaveable { mutableIntStateOf(0) }
+ var show by rememberSaveable { mutableStateOf(false) }
+ var mastered by rememberSaveable { mutableIntStateOf(0) }
+ var again by rememberSaveable { mutableIntStateOf(0) }
+ var speed by rememberSaveable { mutableFloatStateOf(1f) }
+ val word = words[index % words.size]
+ val context = LocalContext.current
+ val dao = remember { com.trungtalk.data.db.TrungTalkDatabase.get(context).srsDao() }
+ LaunchedEffect(Unit) { words.forEach { dao.save(com.trungtalk.data.db.SrsCard(cardId=it.hanzi)) } }
+ var tts by remember { mutableStateOf<TextToSpeech?>(null) }
+ var ready by remember { mutableStateOf(false) }
+ DisposableEffect(Unit) {
+  tts = TextToSpeech(context) { status ->
+   ready = status == TextToSpeech.SUCCESS
+   if (status == TextToSpeech.SUCCESS) tts?.language = Locale.SIMPLIFIED_CHINESE
+  }
+  onDispose { tts?.stop(); tts?.shutdown(); tts=null }
+ }
+ fun speak(text: String, slow: Boolean=false) { tts?.setSpeechRate(if(slow) 0.65f else speed); tts?.setPitch(1f); tts?.speak(text,TextToSpeech.QUEUE_FLUSH,null,"flash-"+System.nanoTime()) }
+ Column(Modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+  Text("Flashcard · Từ vựng có ví dụ",style=MaterialTheme.typography.headlineSmall)
+  Text("Thẻ ${index+1}/${words.size} · Đã nhớ: $mastered · Ôn lại: $again")
+  LinearProgressIndicator(progress=(index+1).toFloat()/words.size,modifier=Modifier.fillMaxWidth())
+  Card(Modifier.fillMaxWidth().weight(1f).clickable{show=!show}) {
+   Column(Modifier.fillMaxSize().padding(20.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center) {
+    Text(word.illustration,style=MaterialTheme.typography.displayMedium)
+    Text(word.category,style=MaterialTheme.typography.labelLarge,color=MaterialTheme.colorScheme.secondary)
+    Text(word.hanzi,style=MaterialTheme.typography.displayLarge,color=MaterialTheme.colorScheme.primary)
+    if(show) {
+     Text(word.pinyin,style=MaterialTheme.typography.headlineSmall)
+     Text(word.meaning,style=MaterialTheme.typography.titleLarge)
+     HorizontalDivider()
+     Text("Ví dụ",style=MaterialTheme.typography.titleMedium)
+     Text(word.example,style=MaterialTheme.typography.headlineSmall)
+     Text(word.examplePinyin)
+     Text(word.exampleMeaning)
+    } else Text("Chạm để lật thẻ · nghe từ trước khi xem đáp án")
+   }
+  }
+  Row(horizontalArrangement=Arrangement.spacedBy(8.dp),modifier=Modifier.fillMaxWidth()) {
+   OutlinedButton(enabled=ready,modifier=Modifier.weight(1f),onClick={speak(word.hanzi)}){Text("🔊 Từ")}
+   OutlinedButton(enabled=ready,modifier=Modifier.weight(1f),onClick={speak(word.example)}){Text("▶ Ví dụ")}
+   OutlinedButton(enabled=ready,modifier=Modifier.weight(1f),onClick={speak(word.hanzi,true)}){Text("🐢 Chậm")}
+  }
+  Text("Tốc độ nghe: ${speed}x")
+  Slider(value=speed,onValueChange={speed=it},valueRange=0.75f..1.25f,steps=1)
+  Row(horizontalArrangement=Arrangement.spacedBy(8.dp),modifier=Modifier.fillMaxWidth()) {
+   OutlinedButton(modifier=Modifier.weight(1f),onClick={
+    again++; show=false
+    val next=words[(index+1)%words.size]
+    val old=runCatching{dao.due()}.getOrNull()
+    kotlinx.coroutines.MainScope().launch { dao.save(com.trungtalk.data.db.SrsCard(cardId=word.hanzi,box=1,dueAt=System.currentTimeMillis()+10*60*1000,repetitions=0)) }
+    index=(index+1)%words.size
+   }){Text("Chưa nhớ · Ôn sớm")}
+   Button(modifier=Modifier.weight(1f),onClick={
+    mastered++;show=false
+    val box=(mastered.coerceAtMost(5)); val days=listOf(1,1,3,7,14,30)[box]
+    kotlinx.coroutines.MainScope().launch { dao.save(com.trungtalk.data.db.SrsCard(cardId=word.hanzi,box=box,dueAt=System.currentTimeMillis()+days*86400000L,repetitions=mastered)) }
+    index=(index+1)%words.size
+   }){Text("Đã nhớ ✓")}
+  }
+  Row(horizontalArrangement=Arrangement.spacedBy(8.dp),modifier=Modifier.fillMaxWidth()) {
+   TextButton(onClick={index=(index-1+words.size)%words.size;show=false},modifier=Modifier.weight(1f)){Text("← Trước")}
+   TextButton(onClick={index=(index+1)%words.size;show=false},modifier=Modifier.weight(1f)){Text("Tiếp →")}
+  }
+ }
 }
 
 private fun transcriptSimilarity(expected: String, actual: String): Int {
