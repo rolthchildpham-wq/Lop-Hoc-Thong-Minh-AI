@@ -134,7 +134,13 @@ private fun SettingsScreen(dark: Boolean, onDarkChange: (Boolean) -> Unit) {
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri != null) scope.launch {
             try {
-                val json = org.json.JSONObject().put("app", "TrungTalk").put("backupVersion", 1).put("exportedAt", System.currentTimeMillis()).put("completedLessons", org.json.JSONArray(completed.sorted()))
+                val vocab = context.getSharedPreferences("vocabulary_prefs", android.content.Context.MODE_PRIVATE)
+                val aiCards = context.getSharedPreferences("trungtalk_flashcard_progress", android.content.Context.MODE_PRIVATE)
+                val aiChat = context.getSharedPreferences("trungtalk_ai_chat", android.content.Context.MODE_PRIVATE)
+                val favorites = org.json.JSONArray((vocab.getStringSet("favorites", emptySet()) ?: emptySet()).sorted())
+                val cards = org.json.JSONArray(aiCards.getString("ai_cards_json", "[]"))
+                val chat = org.json.JSONArray(aiChat.getString("history", "[]"))
+                val json = org.json.JSONObject().put("app", "TrungTalk").put("backupVersion", 2).put("exportedAt", System.currentTimeMillis()).put("completedLessons", org.json.JSONArray(completed.sorted())).put("favorites", favorites).put("aiFlashcards", cards).put("aiChatHistory", chat)
                 context.contentResolver.openOutputStream(uri)?.use { it.write(json.toString(2).toByteArray(Charsets.UTF_8)) }
                 Toast.makeText(context, "Đã xuất tiến độ học (" + completed.size + " bài).", Toast.LENGTH_LONG).show()
             } catch (e: Exception) { Toast.makeText(context, "Xuất dữ liệu thất bại: " + e.message, Toast.LENGTH_LONG).show() }
@@ -145,10 +151,17 @@ private fun SettingsScreen(dark: Boolean, onDarkChange: (Boolean) -> Unit) {
             try {
                 val raw = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } ?: error("Không đọc được tệp")
                 val json = org.json.JSONObject(raw)
-                require(json.optString("app") == "TrungTalk" && json.optInt("backupVersion") == 1) { "Tệp sao lưu không đúng định dạng" }
+                require(json.optString("app") == "TrungTalk" && json.optInt("backupVersion") in 1..2) { "Tệp sao lưu không đúng định dạng" }
                 val arr = json.optJSONArray("completedLessons") ?: error("Thiếu dữ liệu bài học")
                 val ids = buildSet { for (i in 0 until arr.length()) { val id = arr.optString(i); if (id.isNotBlank()) add(id) } }
                 progress.restoreCompleted(ids)
+                if (json.optInt("backupVersion") >= 2) {
+                    val favoritesArray = json.optJSONArray("favorites") ?: org.json.JSONArray()
+                    val favorites = buildSet { for (i in 0 until favoritesArray.length()) { val word = favoritesArray.optString(i); if (word.isNotBlank()) add(word) } }
+                    context.getSharedPreferences("vocabulary_prefs", android.content.Context.MODE_PRIVATE).edit().putStringSet("favorites", favorites).apply()
+                    json.optJSONArray("aiFlashcards")?.let { context.getSharedPreferences("trungtalk_flashcard_progress", android.content.Context.MODE_PRIVATE).edit().putString("ai_cards_json", it.toString()).apply() }
+                    json.optJSONArray("aiChatHistory")?.let { context.getSharedPreferences("trungtalk_ai_chat", android.content.Context.MODE_PRIVATE).edit().putString("history", it.toString()).apply() }
+                }
                 Toast.makeText(context, "Đã nhập tiến độ: " + ids.size + " bài.", Toast.LENGTH_LONG).show()
             } catch (e: Exception) { Toast.makeText(context, "Nhập dữ liệu thất bại: " + e.message, Toast.LENGTH_LONG).show() }
         }
@@ -160,7 +173,7 @@ private fun SettingsScreen(dark: Boolean, onDarkChange: (Boolean) -> Unit) {
         Text("AI: cần Worker URL và GEMINI_API_KEY được cấu hình ở máy chủ.")
         Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Sao lưu tiến độ học", style = MaterialTheme.typography.titleMedium)
-            Text("Hiện đã hoàn thành: " + completed.size + " bài. Tệp JSON lưu tiến độ bài học; chưa bao gồm lịch sử Grammar, thẻ SRS, hội thoại AI hay từ yêu thích.")
+            Text("Hiện đã hoàn thành: " + completed.size + " bài. JSON gồm tiến độ bài học, từ yêu thích, flashcard AI và lịch sử chat AI. Chưa bao gồm Grammar, SRS và lịch sử luyện tập.")
             Button(onClick = { exportLauncher.launch("TrungTalk_Backup.json") }, modifier = Modifier.fillMaxWidth()) { Text("Xuất bản sao lưu") }
             OutlinedButton(onClick = { importLauncher.launch(arrayOf("application/json", "text/*")) }, modifier = Modifier.fillMaxWidth()) { Text("Nhập bản sao lưu") }
         } }
