@@ -569,6 +569,12 @@ private fun StatsScreen() {
     val completed by remember { UserProgress(context).completed }.collectAsState(initial = emptySet())
     val srsDao = remember { com.trungtalk.data.db.TrungTalkDatabase.get(context).srsDao() }
     val srsCards by srsDao.all().collectAsState(initial = emptyList())
+    val grammarDao = remember { com.trungtalk.data.db.TrungTalkDatabase.get(context).grammarDao() }
+    val grammarEntries by grammarDao.recent().collectAsState(initial = emptyList())
+    val now = System.currentTimeMillis()
+    val dueCards = srsCards.count { it.dueAt <= now }
+    val overdueCards = srsCards.count { it.dueAt < now - 24 * 60 * 60 * 1000L }
+    val grammarAverage = if (grammarEntries.isEmpty()) 0 else grammarEntries.sumOf { it.practiceScore } / grammarEntries.size
     val total = Curriculum.phases.sumOf { it.lessons.size }
     val done = Curriculum.phases.sumOf { phase -> phase.lessons.count { it.id in completed } }
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -578,6 +584,17 @@ private fun StatsScreen() {
             Text(done.toString() + " / " + total, style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.primary)
             LinearProgressIndicator(progress = if (total == 0) 0f else done.toFloat() / total, modifier = Modifier.fillMaxWidth())
             Text((if (total == 0) 0 else done * 100 / total).toString() + "% lộ trình")
+        } }
+        Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Ôn tập cần ưu tiên", style = MaterialTheme.typography.titleMedium)
+            Text("Đến hạn: $dueCards thẻ · Quá hạn trên 24 giờ: $overdueCards")
+            Text(if (dueCards > 0) "Nên xử lý thẻ đến hạn trước khi tạo thêm thẻ mới." else "Không có thẻ đến hạn. Bạn đang theo kịp lịch ôn.")
+        } }
+        Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Luyện câu Grammar", style = MaterialTheme.typography.titleMedium)
+            Text("Đã lưu ${grammarEntries.size} lượt đánh giá gần đây")
+            Text("Điểm trung bình: $grammarAverage / 100", style = MaterialTheme.typography.titleLarge)
+            if (grammarEntries.isNotEmpty()) Text("Lượt gần nhất: ${grammarEntries.first().practiceScore}/100 · ${grammarEntries.first().targetWord}")
         } }
         Curriculum.phases.forEach { phase ->
             val count = phase.lessons.count { it.id in completed }
