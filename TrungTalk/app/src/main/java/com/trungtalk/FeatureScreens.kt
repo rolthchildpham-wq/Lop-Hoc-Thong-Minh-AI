@@ -215,14 +215,38 @@ fun HskScreen() {
 fun GamificationScreen() {
  val ctx=LocalContext.current
  val done by remember { com.trungtalk.data.UserProgress(ctx).completed }.collectAsState(initial=emptySet())
- val xp=done.size*20; val level=xp/100+1
- Column(Modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
-  Text("Thành tích",style=MaterialTheme.typography.headlineSmall)
-  Card(Modifier.fillMaxWidth()){Column(Modifier.padding(20.dp)){Text("Cấp độ $level",style=MaterialTheme.typography.headlineMedium);Text("$xp XP · ${done.size} bài hoàn thành");LinearProgressIndicator(progress=(xp%100)/100f,modifier=Modifier.fillMaxWidth())}}
-  Text("🏅 Khởi động · hoàn thành 1 bài")
-  Text("🎯 Chăm chỉ · hoàn thành 20 bài")
-  Text("🏆 Bậc thầy · hoàn thành toàn bộ lộ trình")
-  Text("XP tính theo bài đã hoàn thành. Streak và bảng xếp hạng nhiều người cần dịch vụ đồng bộ.")
+ val xp=done.size*20
+ val level=xp/100+1
+ val progress=(xp%100)/100f
+ val nextLevelXp=level*100
+ val totalLessons=Curriculum.phases.sumOf { it.lessons.size }
+ val achievements=listOf(
+  Triple("🌱","Khởi động",1),
+  Triple("🔥","Kiên trì",5),
+  Triple("🎯","Chăm chỉ",20),
+  Triple("💎","Chuyên gia",50),
+  Triple("🏆","Bậc thầy",totalLessons)
+ )
+ Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
+  Text("Thành tích & cấp độ",style=MaterialTheme.typography.headlineSmall)
+  Card(Modifier.fillMaxWidth()){Column(Modifier.padding(20.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+   Text("⭐ Cấp độ $level",style=MaterialTheme.typography.headlineMedium)
+   Text("$xp XP · ${done.size}/$totalLessons bài hoàn thành")
+   LinearProgressIndicator(progress=progress,modifier=Modifier.fillMaxWidth())
+   Text("${100-(xp%100)} XP nữa để lên cấp $nextLevelXp",style=MaterialTheme.typography.bodySmall)
+  }}
+  Text("Huy hiệu",style=MaterialTheme.typography.titleLarge)
+  achievements.forEach { (emoji,title,target) ->
+   val unlocked=done.size>=target
+   Card(Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=if(unlocked)MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant)){
+    Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
+     Text("$emoji $title",style=MaterialTheme.typography.titleMedium)
+     Text(if(unlocked) "Đã mở khóa · $target bài" else "Tiến độ ${done.size.coerceAtMost(target)}/$target bài")
+     LinearProgressIndicator(progress=(done.size.toFloat()/target).coerceIn(0f,1f),modifier=Modifier.fillMaxWidth())
+    }
+   }
+  }
+  Text("XP tính 20 điểm cho mỗi bài học hoàn thành. Streak và bảng xếp hạng nhiều người cần dịch vụ đồng bộ.")
  }
 }
 
