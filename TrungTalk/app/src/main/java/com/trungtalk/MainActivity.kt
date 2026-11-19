@@ -304,11 +304,11 @@ private fun FlashcardScreen() {
   tts?.setPitch(1f)
   tts?.speak(text,TextToSpeech.QUEUE_FLUSH,null,"flash-"+System.nanoTime())
  }
- Column(Modifier.fillMaxSize().padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+ Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
   Text("Flashcard TrungTalk · AI",style=MaterialTheme.typography.headlineSmall)
   Text("Thẻ ${index+1}/${deck.size} · Đã nhớ: $mastered · Ôn lại: $again")
   LinearProgressIndicator(progress=(index+1).toFloat()/deck.size,modifier=Modifier.fillMaxWidth())
-  Card(Modifier.fillMaxWidth().weight(1f).clickable{show=!show}) {
+  Card(Modifier.fillMaxWidth().heightIn(min=220.dp).clickable{show=!show}) {
    Column(Modifier.fillMaxSize().padding(16.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center) {
     Text(word.category,style=MaterialTheme.typography.labelLarge,color=MaterialTheme.colorScheme.secondary)
     Text(word.hanzi,style=MaterialTheme.typography.displayLarge,color=MaterialTheme.colorScheme.primary)
