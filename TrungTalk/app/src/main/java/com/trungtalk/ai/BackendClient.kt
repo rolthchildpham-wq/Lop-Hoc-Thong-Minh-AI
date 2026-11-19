@@ -49,4 +49,16 @@ class BackendClient(context: Context) {
    JSONObject(raw).optString("text").ifBlank { "Máy chủ chưa trả lời nội dung." }
   }
  }
+ suspend fun evaluate(prompt: String): String = withContext(Dispatchers.IO) {
+  require(baseUrl.isNotBlank()) { "Chưa cấu hình BACKEND_URL. Hãy triển khai Worker và đặt biến BACKEND_URL khi build." }
+  val payload = JSONObject().put("prompt", prompt)
+  val request = Request.Builder().url("$baseUrl/evaluate").header("x-device-id",deviceId)
+   .post(payload.toString().toRequestBody(jsonType)).build()
+  client.newCall(request).execute().use { response ->
+   val raw=response.body?.string().orEmpty()
+   if(!response.isSuccessful) throw IllegalStateException("Worker HTTP ${response.code}: ${runCatching{JSONObject(raw).optString("error")}.getOrDefault(raw.take(160))}")
+   JSONObject(raw).optString("text").ifBlank { "Máy chủ chưa trả lời nội dung." }
+  }
+ }
+
 }
