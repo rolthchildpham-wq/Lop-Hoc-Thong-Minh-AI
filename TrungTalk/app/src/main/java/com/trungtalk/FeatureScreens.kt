@@ -265,7 +265,8 @@ fun SrsScreen() {
    }
   Text("Hộp ${card.box.coerceIn(1,5)} · Đã ôn ${card.repetitions} lần")
    val nextBox=(card.box+1).coerceAtMost(5)
-   val nextDays=intervals[nextBox-1]
+   // Box 1 -> 1 day, box 2 -> 3 days, box 3 -> 7 days, box 4 -> 14 days, box 5 -> 30 days.
+   val nextDays=intervals[card.box.coerceIn(1,5)-1]
    Text("Nếu nhớ: lần ôn tiếp theo sau ${nextDays} ngày")
    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
     OutlinedButton(enabled=!busy,onClick={busy=true;scope.launch{
