@@ -309,7 +309,7 @@ private fun FlashcardScreen() {
   Text("Thẻ ${index+1}/${deck.size} · Đã nhớ: $mastered · Ôn lại: $again")
   LinearProgressIndicator(progress=(index+1).toFloat()/deck.size,modifier=Modifier.fillMaxWidth())
   Card(Modifier.fillMaxWidth().heightIn(min=220.dp).clickable{show=!show}) {
-   Column(Modifier.fillMaxSize().padding(16.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center) {
+   Column(Modifier.fillMaxWidth().heightIn(min=188.dp).padding(16.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center) {
     Text(word.category,style=MaterialTheme.typography.labelLarge,color=MaterialTheme.colorScheme.secondary)
     Text(word.hanzi,style=MaterialTheme.typography.displayLarge,color=MaterialTheme.colorScheme.primary)
     if(show) {
