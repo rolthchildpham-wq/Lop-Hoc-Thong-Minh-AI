@@ -283,7 +283,7 @@ private fun FlashcardScreen() {
  var repeatCount by rememberSaveable { mutableIntStateOf(3) }
  var pauseSeconds by rememberSaveable { mutableIntStateOf(2) }
  var autoListening by rememberSaveable { mutableStateOf(false) }
- val deck = remember { mutableStateListOf<Word>().apply { addAll(words) } }
+ val deck = remember { mutableStateListOf<Word>().apply { addAll(words.shuffled()) } }
  val word = deck[index.coerceIn(0, deck.lastIndex)]
  val context = LocalContext.current
  val dao = remember { com.trungtalk.data.db.TrungTalkDatabase.get(context).srsDao() }
