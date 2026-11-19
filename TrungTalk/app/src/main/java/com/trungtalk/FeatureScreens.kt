@@ -142,6 +142,7 @@ fun HskScreen() {
  var attempts by remember { mutableIntStateOf(prefs.getInt("attempts",0)) }
  var best by remember { mutableIntStateOf(prefs.getInt("best",0)) }
  var latest by remember { mutableIntStateOf(prefs.getInt("latest",0)) }
+ var totalScore by remember { mutableIntStateOf(prefs.getInt("total_score",0)) }
  val questions=remember { listOf(
   Triple("你好 nghĩa là gì?",listOf("Xin chào","Tạm biệt","Cảm ơn"),0),
   Triple("谢谢 nghĩa là gì?",listOf("Xin lỗi","Cảm ơn","Không có"),1),
@@ -176,8 +177,9 @@ fun HskScreen() {
   if(finished) {
    latest=score
    attempts+=1
+   totalScore+=score
    if(score>best) best=score
-   prefs.edit().putInt("attempts",attempts).putInt("best",best).putInt("latest",latest).apply()
+   prefs.edit().putInt("attempts",attempts).putInt("best",best).putInt("latest",latest).putInt("total_score",totalScore).apply()
   }
  }
  Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
@@ -187,6 +189,7 @@ fun HskScreen() {
    Text("Số bài đã hoàn thành: $attempts")
    Text("Điểm cao nhất: $best/24")
    Text("Bài gần nhất: $latest/24")
+   Text("Điểm trung bình: ${if(attempts>0) totalScore/attempts else 0}/24")
   }}
   if(finished){
    Text("Hoàn thành ${questions.size} câu!",style=MaterialTheme.typography.titleLarge)
