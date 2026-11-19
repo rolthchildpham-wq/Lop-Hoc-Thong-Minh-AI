@@ -499,6 +499,7 @@ private fun SpeakingScreen() {
                 Text(transcript, style = MaterialTheme.typography.headlineSmall)
                 Text("Độ khớp văn bản tham khảo: $score/100",style=MaterialTheme.typography.titleLarge,color=MaterialTheme.colorScheme.primary)
                 LinearProgressIndicator(progress=score/100f,modifier=Modifier.fillMaxWidth())
+                Text("Câu mẫu: $target", style=MaterialTheme.typography.bodySmall)
             } }
             Text("Điểm này chỉ so sánh văn bản nhận dạng với câu mẫu, không đo thanh điệu, âm vị hoặc chất lượng âm thanh. Muốn chấm phát âm chuyên sâu cần Azure Speech Pronunciation Assessment.", style = MaterialTheme.typography.bodySmall)
         }
