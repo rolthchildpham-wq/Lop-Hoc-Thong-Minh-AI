@@ -110,6 +110,7 @@ private fun TrungTalkApp() {
             composable("grammar") { GrammarScreen() }
             composable("roleplay") { RoleplayScreen() }
             composable("hsk") { HskScreen() }
+            composable("vocabulary") { VocabularyScreen() }
             composable("gamification") { GamificationScreen() }
             composable("srs") { SrsScreen() }
             composable("settings") { SettingsScreen(darkMode) { darkMode = it } }
@@ -159,7 +160,7 @@ private fun HomeScreen(nav: NavController) {
             }
         }
         item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { QuickTile("🧠","Ngữ pháp",Modifier.weight(1f)) { nav.navigate("grammar") }; QuickTile("🎭","Đóng vai",Modifier.weight(1f)) { nav.navigate("roleplay") }; QuickTile("📝","HSK",Modifier.weight(1f)) { nav.navigate("hsk") } } }
-        item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { QuickTile("🏆","Thành tích",Modifier.weight(1f)) { nav.navigate("gamification") }; QuickTile("🔁","Ôn SRS",Modifier.weight(1f)) { nav.navigate("srs") }; QuickTile("⚙️","Cài đặt",Modifier.weight(1f)) { nav.navigate("settings") } } }
+        item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { QuickTile("📖","Từ điển",Modifier.weight(1f)) { nav.navigate("vocabulary") }; QuickTile("🏆","Thành tích",Modifier.weight(1f)) { nav.navigate("gamification") }; QuickTile("🔁","Ôn SRS",Modifier.weight(1f)) { nav.navigate("srs") }; QuickTile("⚙️","Cài đặt",Modifier.weight(1f)) { nav.navigate("settings") } } }
         item { OutlinedCard(onClick = { nav.navigate("principles") }, modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp)) { Text("📌 3 nguyên tắc vàng", style = MaterialTheme.typography.titleMedium); Text("30% học – 70% thực hành nghe và nói") } } }
         item { Text("Lộ trình 5 giai đoạn", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
         items(Curriculum.phases) { phase ->
