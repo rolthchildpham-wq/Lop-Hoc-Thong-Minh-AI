@@ -18,6 +18,11 @@ class UserProgress(private val context: Context) {
         }
     }
 
+    suspend fun restoreCompleted(ids: Set<String>) {
+        context.progressStore.edit { prefs -> prefs[completedKey] = ids }
+    }
+
+
     suspend fun reset() {
         context.progressStore.edit { it.clear() }
     }
