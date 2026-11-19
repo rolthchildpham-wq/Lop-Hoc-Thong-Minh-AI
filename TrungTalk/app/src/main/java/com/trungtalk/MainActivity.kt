@@ -395,15 +395,15 @@ private fun FlashcardScreen() {
       val repetitions=(previous?.repetitions ?: 0)+1
       val days=listOf(1,3,7,14,30)[box-1]
       dao.save(com.trungtalk.data.db.SrsCard(cardId=word.hanzi,box=box,dueAt=System.currentTimeMillis()+days*86400000L,repetitions=repetitions))
-      mastered++;reviewPrefs.edit().putInt("mastered",mastered).apply();show=false;index=(index+1)%deck.size
+      mastered++;reviewPrefs.edit().putInt("mastered",mastered).apply();show=false;index=(index+1)%deck.size;reviewPrefs.edit().putInt("deck_index",index).apply()
      } catch(e:Exception) { aiError="Không lưu được lịch ôn tập: " + (e.message ?: "thử lại") }
      finally { savingReview=false }
     }
    }){Text(if(savingReview) "Đang lưu…" else "Đã nhớ ✓")}
   }
   Row(horizontalArrangement=Arrangement.spacedBy(8.dp),modifier=Modifier.fillMaxWidth()) {
-   TextButton(onClick={index=(index-1+deck.size)%deck.size;show=false},modifier=Modifier.weight(1f)){Text("← Trước")}
-   TextButton(onClick={index=(index+1)%deck.size;show=false},modifier=Modifier.weight(1f)){Text("Tiếp →")}
+   TextButton(onClick={index=(index-1+deck.size)%deck.size;reviewPrefs.edit().putInt("deck_index",index).apply();show=false},modifier=Modifier.weight(1f)){Text("← Trước")}
+   TextButton(onClick={index=(index+1)%deck.size;reviewPrefs.edit().putInt("deck_index",index).apply();show=false},modifier=Modifier.weight(1f)){Text("Tiếp →")}
   }
   HorizontalDivider()
   Text("Tạo Flashcard bằng AI",style=MaterialTheme.typography.titleMedium)
@@ -429,7 +429,7 @@ private fun FlashcardScreen() {
       added.add(Word(hanzi,obj.optString("pinyin"),obj.optString("meaning_vi"),"AI",obj.optString("example"),obj.optString("example_pinyin"),obj.optString("example_vi"),obj.optString("category",topic)))
      }
      if(added.isEmpty()) aiError="AI không trả về thẻ hợp lệ hoặc từ bị trùng. Hãy thử chủ đề khác."
-     else { deck.addAll(added);index=deck.lastIndex;show=true;added.forEach{dao.save(com.trungtalk.data.db.SrsCard(cardId=it.hanzi))} }
+     else { deck.addAll(added);reviewPrefs.edit().putString("deck_order",joinToString("|"){it.hanzi}).apply();index=deck.lastIndex;reviewPrefs.edit().putInt("deck_index",index).apply();show=true;added.forEach{dao.save(com.trungtalk.data.db.SrsCard(cardId=it.hanzi))} }
     } catch(e:Exception) { aiError=e.message ?: "Lỗi tạo thẻ AI. Kiểm tra backend và thử lại." }
     finally { aiBusy=false }
    }
