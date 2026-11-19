@@ -272,10 +272,10 @@ private val words = listOf(
 
 @Composable
 private fun FlashcardScreen() {
- var index by rememberSaveable { mutableIntStateOf(0) }
- var show by rememberSaveable { mutableStateOf(false) }
  val context = LocalContext.current
  val reviewPrefs = remember { context.applicationContext.getSharedPreferences("trungtalk_flashcard_progress", android.content.Context.MODE_PRIVATE) }
+ var index by rememberSaveable { mutableIntStateOf(reviewPrefs.getInt("deck_index",0)) }
+ var show by rememberSaveable { mutableStateOf(false) }
  var mastered by rememberSaveable { mutableIntStateOf(reviewPrefs.getInt("mastered",0)) }
  var again by rememberSaveable { mutableIntStateOf(reviewPrefs.getInt("again",0)) }
  var speed by rememberSaveable { mutableFloatStateOf(1f) }
@@ -288,7 +288,14 @@ private fun FlashcardScreen() {
  var pauseSeconds by rememberSaveable { mutableIntStateOf(2) }
  var autoListening by rememberSaveable { mutableStateOf(false) }
  var savingReview by remember { mutableStateOf(false) }
- val deck = remember { mutableStateListOf<Word>().apply { addAll(words.shuffled()) } }
+ val deck = remember {
+  val savedOrder=reviewPrefs.getString("deck_order",null)?.split("|")?.filter{it.isNotBlank()}
+  val byHanzi=words.associateBy{it.hanzi}
+  mutableStateListOf<Word>().apply {
+   if(savedOrder!=null && savedOrder.size==words.size && savedOrder.all{it in byHanzi}) addAll(savedOrder.mapNotNull{byHanzi[it]})
+   else { addAll(words.shuffled()); reviewPrefs.edit().putString("deck_order",joinToString("|"){it.hanzi}).apply() }
+  }
+ }
  val word = deck[index.coerceIn(0, deck.lastIndex)]
  val dao = remember { com.trungtalk.data.db.TrungTalkDatabase.get(context).srsDao() }
  val scope = rememberCoroutineScope()
@@ -374,7 +381,7 @@ private fun FlashcardScreen() {
     scope.launch {
      try {
       dao.save(com.trungtalk.data.db.SrsCard(cardId=word.hanzi,box=1,dueAt=System.currentTimeMillis()+10*60*1000,repetitions=0))
-      again++;reviewPrefs.edit().putInt("again",again).apply();show=false;index=(index+1)%deck.size
+      again++;reviewPrefs.edit().putInt("again",again).apply();show=false;index=(index+1)%deck.size;reviewPrefs.edit().putInt("deck_index",index).apply()
      } catch(e:Exception) { aiError="Không lưu được lịch ôn tập: " + (e.message ?: "thử lại") }
      finally { savingReview=false }
     }
