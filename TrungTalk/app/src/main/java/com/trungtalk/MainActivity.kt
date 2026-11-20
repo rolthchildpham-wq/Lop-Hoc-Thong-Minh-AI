@@ -113,7 +113,7 @@ private fun TrungTalkApp() {
             composable("hsk") { HskScreen() }
             composable("vocabulary") { VocabularyScreen() }
             composable("reader") { GradedReaderScreen() }
-            composable("plan") { LearningPlanScreen() }
+            composable("plan") { LearningPlanScreen { nav.navigate(it) } }
             composable("gamification") { GamificationScreen() }
             composable("srs") { SrsScreen() }
             composable("settings") { SettingsScreen(darkMode) { darkMode = it } }
