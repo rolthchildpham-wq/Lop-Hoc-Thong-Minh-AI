@@ -173,6 +173,7 @@ fun HskScreen() {
  var index by remember { mutableIntStateOf(0) }
  var score by remember { mutableIntStateOf(0) }
  var chosen by remember { mutableIntStateOf(-1) }
+ var missed by remember { mutableStateOf(prefs.getStringSet("missed_questions",emptySet())?.toSet() ?: emptySet()) }
  val finished=index>=questions.size
  LaunchedEffect(finished) {
   if(finished) {
@@ -199,12 +200,17 @@ fun HskScreen() {
    Text("Kết quả: $score/${questions.size} · ${score*100/questions.size}%")
    LinearProgressIndicator(progress=score.toFloat()/questions.size,modifier=Modifier.fillMaxWidth())
    Button(onClick={index=0;score=0;chosen=-1},modifier=Modifier.fillMaxWidth()){Text("Làm bài mới")}
+   if(missed.isNotEmpty()){
+    Text("Câu cần ôn lại (${missed.size})",style=MaterialTheme.typography.titleMedium)
+    missed.forEach { Text("• $it") }
+    OutlinedButton(onClick={missed=emptySet();prefs.edit().remove("missed_questions").apply()},modifier=Modifier.fillMaxWidth()){Text("Xóa danh sách câu sai")}
+   }
   }else{
    val q=questions[index]
    Text("Câu ${index+1}/${questions.size} · Đúng $score")
    LinearProgressIndicator(progress=index.toFloat()/questions.size,modifier=Modifier.fillMaxWidth())
    Text(q.first,style=MaterialTheme.typography.headlineMedium)
-   q.second.forEachIndexed{i,v->OutlinedButton(onClick={if(chosen<0){chosen=i;if(i==q.third)score++}},modifier=Modifier.fillMaxWidth(),enabled=chosen<0){Text(v)}}
+   q.second.forEachIndexed{i,v->OutlinedButton(onClick={if(chosen<0){chosen=i;if(i==q.third)score++ else {missed=missed+q.first;prefs.edit().putStringSet("missed_questions",missed).apply()} }},modifier=Modifier.fillMaxWidth(),enabled=chosen<0){Text(v)}}
    if(chosen>=0) Text(if(chosen==q.third)"Chính xác! 🎉" else "Chưa đúng. Đáp án: ${q.second[q.third]}",color=if(chosen==q.third)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
    Button(enabled=chosen>=0,onClick={index++;chosen=-1},modifier=Modifier.fillMaxWidth()){Text(if(index==questions.lastIndex)"Xem kết quả" else "Câu tiếp theo")}
   }
