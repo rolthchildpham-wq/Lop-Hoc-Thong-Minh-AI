@@ -1,4 +1,4 @@
-const MODEL = "gemini-3.8-flash";
+const MODELS = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"];
 const LIMIT = 25;
 const WINDOW = 60;
 const cors = {
@@ -19,14 +19,25 @@ function buildPrompt(path,payload) {
  if(path==="/flashcard") { const count=Math.max(5,Math.min(20,Number(payload.count)||10)); const topic=String(payload.topic||"giao tiếp cơ bản").slice(0,120); const level=String(payload.level||"HSK 1").slice(0,40); return teacher+" Tạo chính xác "+count+" flashcard tiếng Trung cho chủ đề "+topic+" và cấp "+level+". Chỉ trả JSON array, không markdown. Mỗi object có keys hanzi,pinyin,meaning_vi,example,example_pinyin,example_vi,category,level,image_search_query,audio_text. image_search_query là cụm tìm ảnh thật cụ thể bằng tiếng Anh (2-5 từ), không dùng emoji; audio_text là câu chữ tiếng Trung để phát TTS. Từ/câu đúng trình độ, không trùng, ưu tiên từ thông dụng."; }
  return "";
 }
+async function generateWithModel(model,prompt,wantsJson,temperature,env) {
+ const upstream=await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent?key="+encodeURIComponent(env.GEMINI_API_KEY),{
+  method:"POST",headers:{"Content-Type":"application/json"},
+  body:JSON.stringify({contents:[{role:"user",parts:[{text:prompt}]}],generationConfig:{temperature,maxOutputTokens:1800,...(wantsJson?{responseMimeType:"application/json"}:{})}})
+ });
+ const data=await upstream.json().catch(()=>({}));
+ if(!upstream.ok) return {ok:false,status:upstream.status,error:data.error?.message||"Gemini request failed"};
+ const text=data.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("").trim()||"";
+ if(!text) return {ok:false,status:502,error:"empty_model_response"};
+ return {ok:true,text};
+}
 export default {
  async fetch(request,env) {
   const url=new URL(request.url);
   if(request.method==="OPTIONS") return new Response(null,{status:204,headers:cors});
-  if(url.pathname==="/health"&&request.method==="GET") return json({ok:true,service:"trungtalk-ai",model:MODEL,available:!!env.GEMINI_API_KEY});
+  if(url.pathname==="/health"&&request.method==="GET") return json({ok:true,service:"trungtalk-ai",models:MODELS,available:!!env.GEMINI_API_KEY,configured:!!env.GEMINI_API_KEY});
   const routes=["/chat","/grammar","/evaluate","/flashcard"];
   if(request.method!=="POST"||!routes.includes(url.pathname)) return json({error:"not_found"},404);
-  if(!env.GEMINI_API_KEY) return json({error:"server_not_configured"},503);
+  if(!env.GEMINI_API_KEY) return json({error:"server_not_configured",detail:"Worker thiếu GEMINI_API_KEY"},503);
   let payload;
   try { payload=await request.json(); } catch { return json({error:"invalid_json"},400); }
   const prompt=buildPrompt(url.pathname,payload||{});
@@ -39,17 +50,16 @@ export default {
    if(count>=LIMIT) return json({error:"rate_limit",retry_after:WINDOW},429);
    await env.RATE_LIMIT.put(key,String(count+1),{expirationTtl:120});
   }
-  try {
-   const wantsJson=url.pathname!=="/chat";
-   const upstream=await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+MODEL+":generateContent?key="+encodeURIComponent(env.GEMINI_API_KEY),{
-    method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({contents:[{role:"user",parts:[{text:prompt}]}],generationConfig:{temperature:url.pathname==="/chat"?0.65:0.25,maxOutputTokens:1800,...(wantsJson?{responseMimeType:"application/json"}:{})}})
-   });
-   const data=await upstream.json().catch(()=>({}));
-   if(!upstream.ok) return json({error:"upstream_error",status:upstream.status,detail:data.error?.message||"Gemini request failed"},502);
-   const text=data.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("").trim()||"";
-   if(!text) return json({error:"empty_model_response"},502);
-   return json({text});
-  } catch(e) { return json({error:"server_error",message:String(e).slice(0,300)},500); }
+  const wantsJson=url.pathname!=="/chat";
+  const temperature=url.pathname==="/chat"?0.65:0.25;
+  let last={status:502,error:"no_model_available"};
+  for(const model of MODELS) {
+   const result=await generateWithModel(model,prompt,wantsJson,temperature,env);
+   if(result.ok) return json({text:result.text,model});
+   last=result;
+   // Fallback only for availability/temporary errors. Do not hide invalid requests or quota failures.
+   if(![404,429,500,502,503].includes(result.status)) break;
+  }
+  return json({error:"upstream_error",status:last.status,detail:last.error,models_tried:MODELS},502);
  }
 };
