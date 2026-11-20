@@ -12,6 +12,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
+import com.trungtalk.data.db.TrungTalkDatabase
+import com.trungtalk.data.db.SrsCard
 import java.util.Locale
 
 private data class ReaderWord(val hanzi:String,val pinyin:String,val meaning:String)
@@ -33,7 +36,9 @@ private fun uniqueReaderChars(story:ReaderStory)=story.words.map{it.hanzi}.disti
 @Composable
 fun GradedReaderScreen(){
  val context=LocalContext.current
- val prefs=remember{context.getSharedPreferences("trungtalk_reader",Context.MODE_PRIVATE)}\n val srsDao=remember{TrungTalkDatabase.get(context).srsDao()}\n val scope=rememberCoroutineScope()
+ val prefs=remember{context.getSharedPreferences("trungtalk_reader",Context.MODE_PRIVATE)}
+ val srsDao=remember{TrungTalkDatabase.get(context).srsDao()}
+ val scope=rememberCoroutineScope()
  var level by rememberSaveable{mutableIntStateOf(1)}
  var selected by rememberSaveable{mutableIntStateOf(0)}
  var mastered by remember{mutableStateOf(prefs.getStringSet("mastered",emptySet())?.toSet()?:emptySet())}
@@ -44,7 +49,9 @@ fun GradedReaderScreen(){
  var completed by remember{mutableStateOf(prefs.getStringSet("completed",emptySet())?.toSet()?:emptySet())}
  var tts by remember{mutableStateOf<TextToSpeech?>(null)}
  DisposableEffect(Unit){
-  val engine=TextToSpeech(context){status->if(status==TextToSpeech.SUCCESS) tts?.language=Locale.SIMPLIFIED_CHINESE}
+  val holder=arrayOfNulls<TextToSpeech>(1)
+  val engine=TextToSpeech(context){status->if(status==TextToSpeech.SUCCESS) holder[0]?.language=Locale.SIMPLIFIED_CHINESE}
+  holder[0]=engine
   tts=engine
   onDispose{engine.stop();engine.shutdown();tts=null}
  }
