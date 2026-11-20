@@ -247,6 +247,13 @@ fun HskScreen() {
 fun GamificationScreen() {
  val ctx=LocalContext.current
  val done by remember { com.trungtalk.data.UserProgress(ctx).completed }.collectAsState(initial=emptySet())
+ val streakPrefs=remember { ctx.getSharedPreferences("trungtalk_daily_streak",android.content.Context.MODE_PRIVATE) }
+ var streak by remember { mutableIntStateOf(streakPrefs.getInt("streak",0)) }
+ var lastClaim by remember { mutableStateOf(streakPrefs.getString("last_claim","") ?: "") }
+ var claimedToday by remember { mutableStateOf(false) }
+ val today=remember { java.text.SimpleDateFormat("yyyyMMdd",java.util.Locale.US).format(java.util.Date()) }
+ val yesterday=remember { java.text.SimpleDateFormat("yyyyMMdd",java.util.Locale.US).format(java.util.Date(System.currentTimeMillis()-86400000L)) }
+ LaunchedEffect(today) { claimedToday=lastClaim==today }
  val xp=done.size*20
  val level=xp/100+1
  val progress=(xp%100)/100f
@@ -267,6 +274,16 @@ fun GamificationScreen() {
    LinearProgressIndicator(progress=progress,modifier=Modifier.fillMaxWidth())
    Text("${100-(xp%100)} XP nữa để lên cấp $nextLevelXp",style=MaterialTheme.typography.bodySmall)
   }}
+  Card(Modifier.fillMaxWidth()){Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+   Text("🔥 Chuỗi học mỗi ngày",style=MaterialTheme.typography.titleMedium)
+   Text("$streak ngày liên tiếp",style=MaterialTheme.typography.headlineMedium)
+   Text(if(claimedToday) "Bạn đã điểm danh học hôm nay. Hãy giữ nhịp vào ngày mai!" else "Mỗi ngày hãy học và bấm xác nhận để giữ chuỗi. Bỏ lỡ một ngày sẽ bắt đầu lại.")
+   Button(enabled=!claimedToday,onClick={
+    val newStreak=if(lastClaim==yesterday) streak+1 else 1
+    streak=newStreak;lastClaim=today;claimedToday=true
+    streakPrefs.edit().putInt("streak",newStreak).putString("last_claim",today).apply()
+   },modifier=Modifier.fillMaxWidth()){Text(if(claimedToday) "✓ Đã ghi nhận hôm nay" else "🔥 Xác nhận đã học hôm nay")}
+  }
   Text("Huy hiệu",style=MaterialTheme.typography.titleLarge)
   achievements.forEach { (emoji,title,target) ->
    val unlocked=done.size>=target
