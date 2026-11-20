@@ -97,7 +97,8 @@ fun RoleplayScreen() {
  var busy by remember { mutableStateOf(false) }
  LaunchedEffect(selected,messages) {
   val arr=org.json.JSONArray()
-  messages.forEach { (role,content) -> arr.put(org.json.JSONObject().put("role",role).put("content",content)) }
+  // Keep local history bounded to prevent SharedPreferences growth over long sessions.
+  messages.takeLast(100).forEach { (role,content) -> arr.put(org.json.JSONObject().put("role",role).put("content",content)) }
   prefs.edit().putInt("selected_scenario",selected).putString("history_$selected",arr.toString()).apply()
  }
  Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
@@ -121,7 +122,7 @@ fun RoleplayScreen() {
    val prompt="Bạn đang roleplay tình huống: ${roles[selected].second}. Tiếp tục hội thoại tự nhiên bằng tiếng Trung phù hợp HSK 2-4. Hãy phản hồi như nhân vật, không kết thúc tình huống. Sau câu tiếng Trung, thêm phần ngắn tiếng Việt: giải nghĩa phản hồi và góp ý câu học viên vừa nói (nêu sửa câu nếu cần)."
    busy=true;error="";answer=""
    scope.launch {
-    try { val reply=BackendClient(ctx).chat(prior,prompt+"\nCâu mới của học viên: "+userText); messages=history+("assistant" to reply) }
+    try { val reply=BackendClient(ctx).chat(prior.takeLast(20),prompt+"\nCâu mới của học viên: "+userText); messages=history+("assistant" to reply) }
     catch(e:Exception){answer=userText;error=e.message?: "Không kết nối được AI."}
     finally {busy=false}
    }
