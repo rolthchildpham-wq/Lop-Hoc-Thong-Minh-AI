@@ -140,7 +140,7 @@ private fun SettingsScreen(dark: Boolean, onDarkChange: (Boolean) -> Unit) {
                 val roleplayPrefs = context.getSharedPreferences("trungtalk_roleplay", android.content.Context.MODE_PRIVATE)
                 val hskPrefs = context.getSharedPreferences("trungtalk_hsk_quiz_stats", android.content.Context.MODE_PRIVATE)
                 val roleplay = org.json.JSONObject().apply { for (i in 0 until 5) put("history_$i", roleplayPrefs.getString("history_$i", "[]")) }
-                val hsk = org.json.JSONObject().apply { put("attempts",hskPrefs.getInt("attempts",0)); put("best",hskPrefs.getInt("best",0)); put("latest",hskPrefs.getInt("latest",0)); put("total_score",hskPrefs.getInt("total_score",0)); put("missed_questions",org.json.JSONArray((hskPrefs.getStringSet("missed_questions",emptySet()) ?: emptySet()).sorted()) }
+                val hsk = org.json.JSONObject().apply { put("attempts",hskPrefs.getInt("attempts",0)); put("best",hskPrefs.getInt("best",0)); put("latest",hskPrefs.getInt("latest",0)); put("total_score",hskPrefs.getInt("total_score",0)); put("missed_questions",org.json.JSONArray((hskPrefs.getStringSet("missed_questions",emptySet()) ?: emptySet()).sorted())) }
                 val favorites = org.json.JSONArray((vocab.getStringSet("favorites", emptySet()) ?: emptySet()).sorted())
                 val cards = org.json.JSONArray(aiCards.getString("ai_cards_json", "[]"))
                 val chat = org.json.JSONArray(aiChat.getString("history", "[]"))
