@@ -201,6 +201,38 @@ private fun SettingsScreen(dark: Boolean, onDarkChange: (Boolean) -> Unit) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Giao diện tối"); Switch(checked = dark, onCheckedChange = onDarkChange) }
         Text("Ngôn ngữ giao diện: Tiếng Việt (bản hiện tại). Bản song ngữ Việt/Anh chưa hoàn tất.")
         Text("AI: cần Worker URL và GEMINI_API_KEY được cấu hình ở máy chủ.")
+        var testTts by remember { mutableStateOf<TextToSpeech?>(null) }
+        var ttsReady by rememberSaveable { mutableStateOf(false) }
+        var ttsRate by rememberSaveable { mutableFloatStateOf(1f) }
+        DisposableEffect(context) {
+            val engine = TextToSpeech(context) { status ->
+                ttsReady = status == TextToSpeech.SUCCESS
+                if (status == TextToSpeech.SUCCESS) {
+                    testTts?.setLanguage(Locale.SIMPLIFIED_CHINESE)
+                    testTts?.setSpeechRate(ttsRate)
+                }
+            }
+            testTts = engine
+            onDispose { engine.stop(); engine.shutdown(); testTts = null }
+        }
+        Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Kiểm tra giọng đọc TTS", style = MaterialTheme.typography.titleMedium)
+            Text(if (ttsReady) "Đã khởi tạo bộ đọc văn bản của Android. Giọng tiếng Trung phụ thuộc gói voice trên máy." else "Đang khởi tạo hoặc thiết bị chưa có engine TTS.")
+            Text("Tốc độ đọc: ${"%.1f".format(ttsRate)}x")
+            Slider(value = ttsRate, onValueChange = { ttsRate = it; testTts?.setSpeechRate(it) }, valueRange = 0.5f..1.5f)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(enabled = ttsReady, onClick = {
+                    val result = testTts?.setLanguage(Locale.SIMPLIFIED_CHINESE)
+                    if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) Toast.makeText(context, "Thiết bị chưa cài giọng tiếng Trung. Vào cài đặt TTS Android để tải voice.", Toast.LENGTH_LONG).show()
+                    else testTts?.speak("你好！我们一起学习中文吧。", TextToSpeech.QUEUE_FLUSH, null, "tts-test-zh")
+                }) { Text("▶ Thử tiếng Trung") }
+                OutlinedButton(enabled = ttsReady, onClick = {
+                    testTts?.setLanguage(Locale.US)
+                    testTts?.speak("Hello! Let's practice English.", TextToSpeech.QUEUE_FLUSH, null, "tts-test-en")
+                }) { Text("▶ Thử tiếng Anh") }
+            }
+        } }
+
         Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Sao lưu tiến độ học", style = MaterialTheme.typography.titleMedium)
             Text("Hiện đã hoàn thành: " + completed.size + " bài. JSON gồm tiến độ bài học, từ yêu thích, flashcard AI, chat AI, hội thoại đóng vai, thống kê HSK, câu sai cần ôn, thẻ SRS và Grammar. Lịch sử luyện tập phút chưa được sao lưu.")
