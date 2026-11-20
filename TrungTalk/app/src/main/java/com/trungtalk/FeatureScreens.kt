@@ -235,7 +235,7 @@ fun HskScreen() {
    val q=questions[index]
    Text("Câu ${index+1}/${questions.size} · Đúng $score")
    LinearProgressIndicator(progress=index.toFloat()/questions.size,modifier=Modifier.fillMaxWidth())
-   Text(q.first,style=MaterialTheme.typography.headlineMedium)
+   Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically){Text(q.first,style=MaterialTheme.typography.headlineMedium,modifier=Modifier.weight(1f));IconButton(onClick={TrungTalkSpeech.speak(ctx,q.first)}){Text("🔊")}}
    q.second.forEachIndexed{i,v->OutlinedButton(onClick={if(chosen<0){chosen=i;if(i==q.third)score++ else {missed=missed+q.first;prefs.edit().putStringSet("missed_questions",missed).apply()} }},modifier=Modifier.fillMaxWidth(),enabled=chosen<0){Text(v)}}
    if(chosen>=0) Text(if(chosen==q.third)"Chính xác! 🎉" else "Chưa đúng. Đáp án: ${q.second[q.third]}",color=if(chosen==q.third)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
    Button(enabled=chosen>=0,onClick={index++;chosen=-1},modifier=Modifier.fillMaxWidth()){Text(if(index==questions.lastIndex)"Xem kết quả" else "Câu tiếp theo")}
