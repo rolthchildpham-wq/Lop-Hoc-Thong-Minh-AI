@@ -14,9 +14,34 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import android.content.Context
 import com.trungtalk.data.db.*
 import com.trungtalk.ai.BackendClient
 import kotlinx.coroutines.launch
+
+/** Shared speech engine for feature screens; initializes lazily and queues the first request. */
+private object TrungTalkSpeech {
+ private var engine: TextToSpeech? = null
+ private var ready = false
+ private var pending: Pair<String, Locale>? = null
+ fun speak(context: Context, text: String, locale: Locale = Locale.SIMPLIFIED_CHINESE) {
+  if (text.isBlank()) return
+  if (engine == null) {
+   engine = TextToSpeech(context.applicationContext) { status ->
+    ready = status == TextToSpeech.SUCCESS
+    val queued = pending
+    if (ready && queued != null) {
+     val result = engine?.setLanguage(queued.second)
+     if (result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED) engine?.speak(queued.first, TextToSpeech.QUEUE_FLUSH, null, "tr-talk-shared")
+     pending = null
+    }
+   }
+  }
+  if (!ready) { pending = text to locale; return }
+  val result = engine?.setLanguage(locale)
+  if (result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED) engine?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "tr-talk-shared")
+ }
+}
 
 @Composable
 fun GrammarScreen() {
@@ -63,7 +88,7 @@ fun GrammarScreen() {
    Card(Modifier.fillMaxWidth()){Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
     Text("Điểm đánh giá AI: ${item.practiceScore}/100",style=MaterialTheme.typography.titleLarge,color=MaterialTheme.colorScheme.primary)
     LinearProgressIndicator(progress=item.practiceScore/100f,modifier=Modifier.fillMaxWidth())
-    Text("Câu sửa",style=MaterialTheme.typography.titleMedium);Text(item.correction)
+    Text("Câu sửa",style=MaterialTheme.typography.titleMedium);Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically){Text(item.correction,modifier=Modifier.weight(1f));IconButton(onClick={TrungTalkSpeech.speak(ctx,item.correction)}){Text("🔊")}}
     Text("Phân tích",style=MaterialTheme.typography.titleMedium);Text(item.feedback)
    }}
   }
@@ -109,7 +134,7 @@ fun RoleplayScreen() {
   messages.forEach { (role,content) ->
    Card(Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=if(role=="assistant") MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant)){
     Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){
-     Text(if(role=="assistant") "AI / Nhân vật" else "Bạn",style=MaterialTheme.typography.labelLarge)
+     Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically){Text(if(role=="assistant") "AI / Nhân vật" else "Bạn",style=MaterialTheme.typography.labelLarge,modifier=Modifier.weight(1f));IconButton(onClick={TrungTalkSpeech.speak(ctx,content)}){Text("🔊")}}
      Text(content)
     }
    }
@@ -280,7 +305,7 @@ fun SrsScreen() {
    Text("Thẻ mới sẽ tự xuất hiện khi đến lịch ôn.")
   }
   due.forEach{card->Card(Modifier.fillMaxWidth()){Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
-   Text(card.cardId,style=MaterialTheme.typography.titleLarge)
+   Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically){Text(card.cardId,style=MaterialTheme.typography.titleLarge,modifier=Modifier.weight(1f));IconButton(onClick={TrungTalkSpeech.speak(ctx,card.cardId)}){Text("🔊")}}
    val dictionaryWord=starterDictionary.firstOrNull { it.hanzi == card.cardId }
    if(dictionaryWord!=null) {
     Text(dictionaryWord.pinyin,style=MaterialTheme.typography.titleMedium,color=MaterialTheme.colorScheme.primary)
@@ -490,14 +515,6 @@ fun VocabularyScreen() {
  var level by rememberSaveable { mutableIntStateOf(0) }
  var favorites by remember { mutableStateOf(prefs.getStringSet("favorites",emptySet())?.toSet() ?: emptySet()) }
  var favoritesOnly by rememberSaveable { mutableStateOf(false) }
- var tts by remember { mutableStateOf<TextToSpeech?>(null) }
- DisposableEffect(Unit) {
-  val engineRef=arrayOfNulls<TextToSpeech>(1)
-  val engine=TextToSpeech(context) { status -> if(status==TextToSpeech.SUCCESS) engineRef[0]?.language=Locale.SIMPLIFIED_CHINESE }
-  engineRef[0]=engine
-  tts=engine
-  onDispose { engine.stop();engine.shutdown();tts=null;engineRef[0]=null }
- }
  val filtered=starterDictionary.filter { (level==0||it.level==level) && (!favoritesOnly||it.hanzi in favorites) && (search.isBlank()||it.hanziContains(search)||it.traditional.contains(search.trim(),true)||it.pinyin.contains(search.trim(),true)||it.meaning.contains(search.trim(),true)) }
  Column(Modifier.fillMaxSize().padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
   Text("Từ điển TrungTalk",style=MaterialTheme.typography.headlineSmall)
@@ -522,7 +539,7 @@ fun VocabularyScreen() {
         favorites=updated
         prefs.edit().putStringSet("favorites",updated).apply()
        }) { Text(if(word.hanzi in favorites)"★" else "☆") }
-       IconButton(onClick={tts?.speak(word.hanzi,TextToSpeech.QUEUE_FLUSH,null,"vocab-${word.hanzi}")}) { Text("🔊") }
+       IconButton(onClick={TrungTalkSpeech.speak(context,word.hanzi)}) { Text("🔊") }
       }
       Text(word.traditional+" · "+word.pinyin,style=MaterialTheme.typography.titleMedium)
       Text(word.meaning,style=MaterialTheme.typography.bodyLarge)
