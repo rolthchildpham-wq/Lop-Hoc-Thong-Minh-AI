@@ -64,7 +64,15 @@ fun GradedReaderScreen(){
   Text("Học chữ trước, mở truyện sau. Truyện là nội dung gốc dành cho người Việt học tiếng Trung.")
   Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){(1..3).forEach{lv->FilterChip(selected=level==lv,onClick={level=lv;selected=0;quizAnswer=-1;quizChecked=false},label={Text("Level "+lv)})}}
   Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){stories.forEachIndexed{i,s->FilterChip(selected=selected==i,onClick={selected=i;quizAnswer=-1;quizChecked=false},label={Text(s.title)})}}
-  Text("Chữ cần học · "+chars.count{it in mastered}+"/"+chars.size+" đã biết",style=MaterialTheme.typography.titleSmall)\n  OutlinedButton(onClick={scope.launch{story.words.filter{it.hanzi in mastered}.forEach{w->if(srsDao.get(w.hanzi)==null)srsDao.save(SrsCard(cardId=w.hanzi,box=1,dueAt=System.currentTimeMillis(),repetitions=0))}}},modifier=Modifier.fillMaxWidth()){Text("🔁 Thêm chữ đã biết vào ô SRS")}
+  Text("Chữ cần học · "+chars.count{it in mastered}+"/"+chars.size+" đã biết",style=MaterialTheme.typography.titleSmall)
+  OutlinedButton(
+   onClick={scope.launch{
+    story.words.filter{it.hanzi in mastered}.forEach{w->
+     if(srsDao.get(w.hanzi)==null) srsDao.save(SrsCard(cardId=w.hanzi,box=1,dueAt=System.currentTimeMillis(),repetitions=0))
+    }
+   }},
+   modifier=Modifier.fillMaxWidth()
+  ){Text("🔁 Thêm chữ đã biết vào ô SRS")}
   LazyColumn(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(8.dp)){
    item{Card{Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
     Text("Chạm vào chữ để nghe",fontWeight=FontWeight.SemiBold)
