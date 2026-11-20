@@ -23,7 +23,7 @@ private val dailyTasks = listOf(
 )
 
 @Composable
-fun LearningPlanScreen() {
+fun LearningPlanScreen(onOpenTask:(String)->Unit = {}) {
  val context= LocalContext.current
  val prefs= remember { context.getSharedPreferences("trungtalk_daily_plan", Context.MODE_PRIVATE) }
  val dayKey=remember { SimpleDateFormat("yyyyMMdd",Locale.US).format(Date()) }
@@ -48,6 +48,7 @@ fun LearningPlanScreen() {
      }
      Text(task.detail,style=MaterialTheme.typography.bodySmall)
      Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End) {
+      TextButton(onClick={onOpenTask(task.route)}) { Text("Mở bài") }
       TextButton(onClick={ completed.value=completed.value-task.id; prefs.edit().putStringSet(dayKey,completed.value).apply() },enabled=task.id in completed.value) { Text("Bỏ đánh dấu") }
       Button(onClick={ completed.value=completed.value+task.id; prefs.edit().putStringSet(dayKey,completed.value).apply() },enabled=task.id !in completed.value) { Text(if(task.id in completed.value) "Đã xong ✓" else "Hoàn thành") }
      }
