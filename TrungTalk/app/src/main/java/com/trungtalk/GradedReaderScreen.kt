@@ -33,7 +33,7 @@ private fun uniqueReaderChars(story:ReaderStory)=story.words.map{it.hanzi}.disti
 @Composable
 fun GradedReaderScreen(){
  val context=LocalContext.current
- val prefs=remember{context.getSharedPreferences("trungtalk_reader",Context.MODE_PRIVATE)}
+ val prefs=remember{context.getSharedPreferences("trungtalk_reader",Context.MODE_PRIVATE)}\n val srsDao=remember{TrungTalkDatabase.get(context).srsDao()}\n val scope=rememberCoroutineScope()
  var level by rememberSaveable{mutableIntStateOf(1)}
  var selected by rememberSaveable{mutableIntStateOf(0)}
  var mastered by remember{mutableStateOf(prefs.getStringSet("mastered",emptySet())?.toSet()?:emptySet())}
@@ -57,7 +57,7 @@ fun GradedReaderScreen(){
   Text("Học chữ trước, mở truyện sau. Truyện là nội dung gốc dành cho người Việt học tiếng Trung.")
   Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){(1..3).forEach{lv->FilterChip(selected=level==lv,onClick={level=lv;selected=0;quizAnswer=-1;quizChecked=false},label={Text("Level "+lv)})}}
   Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){stories.forEachIndexed{i,s->FilterChip(selected=selected==i,onClick={selected=i;quizAnswer=-1;quizChecked=false},label={Text(s.title)})}}
-  Text("Chữ cần học · "+chars.count{it in mastered}+"/"+chars.size+" đã biết",style=MaterialTheme.typography.titleSmall)
+  Text("Chữ cần học · "+chars.count{it in mastered}+"/"+chars.size+" đã biết",style=MaterialTheme.typography.titleSmall)\n  OutlinedButton(onClick={scope.launch{story.words.filter{it.hanzi in mastered}.forEach{w->if(srsDao.get(w.hanzi)==null)srsDao.save(SrsCard(cardId=w.hanzi,box=1,dueAt=System.currentTimeMillis(),repetitions=0))}}},modifier=Modifier.fillMaxWidth()){Text("🔁 Thêm chữ đã biết vào ô SRS")}
   LazyColumn(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(8.dp)){
    item{Card{Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
     Text("Chạm vào chữ để nghe",fontWeight=FontWeight.SemiBold)
