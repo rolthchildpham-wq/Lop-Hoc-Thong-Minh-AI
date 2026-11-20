@@ -106,6 +106,7 @@ fun GradedReaderScreen(){
   }
  }
 }
+}
 @Composable
 private fun RadioButtonRow(text:String,selected:Boolean,onClick:()->Unit){
  Row(Modifier.fillMaxWidth().clickable(onClick).padding(vertical=3.dp),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically){RadioButton(selected,onClick);Text(text)}
