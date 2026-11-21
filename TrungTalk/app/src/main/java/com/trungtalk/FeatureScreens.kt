@@ -283,7 +283,7 @@ fun GamificationScreen() {
     streak=newStreak;lastClaim=today;claimedToday=true
     streakPrefs.edit().putInt("streak",newStreak).putString("last_claim",today).apply()
    },modifier=Modifier.fillMaxWidth()){Text(if(claimedToday) "✓ Đã ghi nhận hôm nay" else "🔥 Xác nhận đã học hôm nay")}
-  }
+  }}
   Text("Huy hiệu",style=MaterialTheme.typography.titleLarge)
   achievements.forEach { (emoji,title,target) ->
    val unlocked=done.size>=target
