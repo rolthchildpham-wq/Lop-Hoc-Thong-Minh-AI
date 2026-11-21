@@ -566,19 +566,26 @@ fun VocabularyScreen() {
  val scope=rememberCoroutineScope()
  val prefs=remember { context.getSharedPreferences("vocabulary_prefs",android.content.Context.MODE_PRIVATE) }
  var search by rememberSaveable { mutableStateOf("") }
+ var remoteWords by remember { mutableStateOf<List<DictWord>>(emptyList()) }
+ var hskLoading by remember { mutableStateOf(false) }
+ var hskLoadError by remember { mutableStateOf("") }
+ LaunchedEffect(Unit) { hskLoading=true; try { remoteWords=HskVocabularyRepository.load(context); hskLoadError="" } catch(e:Exception) { hskLoadError=e.message ?: "Không tải được bộ HSK" } finally { hskLoading=false } }
  var level by rememberSaveable { mutableIntStateOf(0) }
  var favorites by remember { mutableStateOf(prefs.getStringSet("favorites",emptySet())?.toSet() ?: emptySet()) }
  var favoritesOnly by rememberSaveable { mutableStateOf(false) }
  var addedToSrs by remember { mutableStateOf(setOf<String>()) }
  var srsBusy by remember { mutableStateOf(setOf<String>()) }
  var srsMessage by rememberSaveable { mutableStateOf("") }
- val filtered=starterDictionary.filter { (level==0||it.level==level) && (!favoritesOnly||it.hanzi in favorites) && (search.isBlank()||it.hanziContains(search)||it.traditional.contains(search.trim(),true)||it.pinyin.contains(search.trim(),true)||it.meaning.contains(search.trim(),true)) }
+ val dictionary=(starterDictionary+remoteWords).distinctBy { it.hanzi+"|"+it.pinyin }
+ val filtered=dictionary.filter { (level==0||it.level==level) && (!favoritesOnly||it.hanzi in favorites) && (search.isBlank()||it.hanziContains(search)||it.traditional.contains(search.trim(),true)||it.pinyin.contains(search.trim(),true)||it.meaning.contains(search.trim(),true)) }
  Column(Modifier.fillMaxSize().padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
   Text("Từ điển TrungTalk",style=MaterialTheme.typography.headlineSmall)
-  Text("Tra nhanh từ Hán · Pinyin · nghĩa tiếng Việt",style=MaterialTheme.typography.bodySmall)
+  Text("HSK 3.0 đầy đủ · 11.000 mục · tải & lưu offline",style=MaterialTheme.typography.bodySmall)
+  if(hskLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
+  if(hskLoadError.isNotBlank()) Text("Không tải được dữ liệu HSK: $hskLoadError. Hiển thị từ điển cơ bản.",color=MaterialTheme.colorScheme.error,style=MaterialTheme.typography.bodySmall)
   OutlinedTextField(search,{search=it},label={Text("Tìm Hán tự, Pinyin hoặc nghĩa")},modifier=Modifier.fillMaxWidth(),singleLine=true)
   Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(5.dp)) {
-   (0..6).forEach { lv -> FilterChip(selected=level==lv,onClick={level=lv},label={Text(if(lv==0)"Tất cả" else "HSK $lv")}) }
+   (0..7).forEach { lv -> FilterChip(selected=level==lv,onClick={level=lv},label={Text(if(lv==0)"Tất cả" else if(lv==7)"HSK 7–9" else "HSK $lv")}) }
   }
   Row(verticalAlignment= androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(8.dp)) {
    Text("Hiển thị ${filtered.size} từ · ${favorites.size} yêu thích",style=MaterialTheme.typography.labelMedium,modifier=Modifier.weight(1f))
