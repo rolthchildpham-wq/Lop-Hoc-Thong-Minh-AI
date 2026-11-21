@@ -11,6 +11,6 @@ The source HTML shows a guided-course landing interface. It does **not** include
 
 ## EdgeOne deployment
 
-Deploy the whole repository's static site so `chinese-learn/index.html` is preserved. Verify `https://aihuedanlearn.edgeone.dev/chinese-learn/` in Preview before releasing Production. The main site's root `index.html` remains unchanged by this branch.
+Deploy the whole repository's static site so `chinese-learn/index.html` is preserved. Verify `https://aihuedanlearn.edgeone.dev/chinese-learn/` in Preview before releasing Production. The root `index.html` now includes Chinese Learn links in its setup modal and top navigation; existing classroom and HSK logic remains intact.
 
-**Important**: importing a subpage does not yet add a launcher to the main app's navigation or sync its learning progress with the root HSK system. Those require integration changes to the 1MB root HTML and explicit QA. Do not present this branch as a full live-site rollout.
+**Important**: the root navigation links are present, but learning progress is not synchronized with the root HSK system. The supplied archive contains a course landing UI, not a completed lesson engine. Browser QA and EdgeOne Preview are still required before production; do not present this branch as a fully tested live rollout.
