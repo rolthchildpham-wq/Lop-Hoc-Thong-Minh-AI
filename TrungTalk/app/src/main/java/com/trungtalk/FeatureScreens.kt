@@ -557,6 +557,7 @@ private val starterDictionary = listOf(
  DictWord("综合","綜合","zōng hé","Tổng hợp",6,"综合分析数据。"),
  DictWord("潜在","潛在","qián zài","Tiềm ẩn",6,"识别潜在风险。"),
  DictWord("目标","目標","mù biāo","Mục tiêu",6,"明确目标和期限。"),
+)
 
 
 @Composable
