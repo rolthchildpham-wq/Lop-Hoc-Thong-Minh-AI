@@ -532,6 +532,9 @@ fun VocabularyScreen() {
  var level by rememberSaveable { mutableIntStateOf(0) }
  var favorites by remember { mutableStateOf(prefs.getStringSet("favorites",emptySet())?.toSet() ?: emptySet()) }
  var favoritesOnly by rememberSaveable { mutableStateOf(false) }
+ var addedToSrs by remember { mutableStateOf(setOf<String>()) }
+ var srsBusy by remember { mutableStateOf(setOf<String>()) }
+ var srsMessage by rememberSaveable { mutableStateOf("") }
  val filtered=starterDictionary.filter { (level==0||it.level==level) && (!favoritesOnly||it.hanzi in favorites) && (search.isBlank()||it.hanziContains(search)||it.traditional.contains(search.trim(),true)||it.pinyin.contains(search.trim(),true)||it.meaning.contains(search.trim(),true)) }
  Column(Modifier.fillMaxSize().padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
   Text("Từ điển TrungTalk",style=MaterialTheme.typography.headlineSmall)
@@ -561,9 +564,25 @@ fun VocabularyScreen() {
       Text(word.traditional+" · "+word.pinyin,style=MaterialTheme.typography.titleMedium)
       Text(word.meaning,style=MaterialTheme.typography.bodyLarge)
       Text(word.example,style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.secondary)
-      OutlinedButton(onClick={scope.launch {
-   if(srsDao.get(word.hanzi)==null) srsDao.save(SrsCard(cardId=word.hanzi,box=1,dueAt=System.currentTimeMillis(),repetitions=0))
-  }},modifier=Modifier.fillMaxWidth()) { Text("＋ Thêm vào ôn tập SRS") }
+      OutlinedButton(enabled=word.hanzi !in srsBusy,onClick={
+       srsBusy=srsBusy+word.hanzi
+       scope.launch {
+        try {
+         if(srsDao.get(word.hanzi)==null) {
+          srsDao.save(SrsCard(cardId=word.hanzi,box=1,dueAt=System.currentTimeMillis(),repetitions=0))
+          addedToSrs=addedToSrs+word.hanzi
+          srsMessage="Đã thêm ${word.hanzi} vào ôn tập SRS."
+         } else {
+          addedToSrs=addedToSrs+word.hanzi
+          srsMessage="${word.hanzi} đã có trong danh sách ôn tập."
+         }
+        } catch(e:Exception) { srsMessage=e.message ?: "Không thể thêm từ vào SRS." }
+        finally { srsBusy=srsBusy-word.hanzi }
+       }
+      },modifier=Modifier.fillMaxWidth()) {
+       Text(when { word.hanzi in srsBusy -> "Đang lưu…"; word.hanzi in addedToSrs -> "✓ Đã thêm / có trong SRS"; else -> "＋ Thêm vào ôn tập SRS" })
+      }
+      if(srsMessage.isNotBlank()) Text(srsMessage,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.secondary)
      }
     }
    }
