@@ -368,7 +368,7 @@ fun SrsScreen() {
 }
 
 
-private data class DictWord(val hanzi:String,val traditional:String,val pinyin:String,val meaning:String,val level:Int,val example:String)
+data class DictWord(val hanzi:String,val traditional:String,val pinyin:String,val meaning:String,val level:Int,val example:String)
 private val starterDictionary = listOf(
  DictWord("你好","你好","nǐ hǎo","Xin chào",1,"你好！"),
  DictWord("谢谢","謝謝","xiè xie","Cảm ơn",1,"谢谢你。"),
