@@ -397,8 +397,10 @@ private fun FlashcardScreen() {
  var pauseSeconds by rememberSaveable { mutableIntStateOf(2) }
  var autoListening by rememberSaveable { mutableStateOf(false) }
  var savingReview by remember { mutableStateOf(false) }
- val deck = remember {
-  // Restore AI-generated cards first, then merge with the built-in vocabulary.
+ var hskDeckWords by remember { mutableStateOf<List<Word>>(emptyList()) }
+ LaunchedEffect(Unit) { runCatching { HskVocabularyRepository.load(context).map { w -> Word(w.hanzi,w.pinyin,w.meaning,"HSK ${w.level}",w.example,"","","HSK ${w.level}") } }.onSuccess { hskDeckWords=it } }
+ val deck = remember(hskDeckWords) {
+  // Merge built-in, AI-generated, and downloaded HSK vocabulary into one deck.
   val aiCards = runCatching {
    val saved = org.json.JSONArray(reviewPrefs.getString("ai_cards_json", "[]"))
    (0 until saved.length()).mapNotNull { i ->
@@ -407,7 +409,9 @@ private fun FlashcardScreen() {
     if (h.isBlank()) null else Word(h, o.optString("pinyin"), o.optString("meaning"), o.optString("illustration", "AI"), o.optString("example"), o.optString("examplePinyin"), o.optString("exampleMeaning"), o.optString("category", "AI"))
    }
   }.getOrDefault(emptyList())
-  val combined = (words + aiCards).distinctBy { it.hanzi }
+  val glosses=context.getSharedPreferences("hsk_vietnamese_glosses",android.content.Context.MODE_PRIVATE)
+  val translatedHsk=hskDeckWords.map { w -> w.copy(meaning=glosses.getString(w.hanzi,null) ?: w.meaning, exampleMeaning=glosses.getString(w.hanzi+"_example",null) ?: w.exampleMeaning) }
+  val combined = (words + aiCards + translatedHsk).distinctBy { it.hanzi }
   val savedOrder=reviewPrefs.getString("deck_order",null)?.split("|")?.filter{it.isNotBlank()}
   val byHanzi=combined.associateBy{it.hanzi}
   mutableStateListOf<Word>().apply {
