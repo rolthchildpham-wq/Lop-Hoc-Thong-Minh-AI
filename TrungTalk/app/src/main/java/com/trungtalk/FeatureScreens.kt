@@ -581,8 +581,9 @@ fun VocabularyScreen() {
  var addedToSrs by remember { mutableStateOf(setOf<String>()) }
  var srsBusy by remember { mutableStateOf(setOf<String>()) }
  var srsMessage by rememberSaveable { mutableStateOf("") }
- val dictionary=(starterDictionary+remoteWords).distinctBy { it.hanzi+"|"+it.pinyin }
- val filtered=dictionary.filter { (level==0||it.level==level) && (!favoritesOnly||it.hanzi in favorites) && (search.isBlank()||it.hanziContains(search)||it.traditional.contains(search.trim(),true)||it.pinyin.contains(search.trim(),true)||it.meaning.contains(search.trim(),true)) }
+ val dictionary=remember(remoteWords) { (starterDictionary+remoteWords).distinctBy { it.hanzi+"|"+it.pinyin } }
+ // Cache filtering until a search/filter/favorite input changes; avoid repeated 11k scans on unrelated recompositions.
+ val filtered=remember(dictionary,level,favoritesOnly,favorites,search) { dictionary.filter { (level==0||it.level==level) && (!favoritesOnly||it.hanzi in favorites) && (search.isBlank()||it.hanziContains(search)||it.traditional.contains(search.trim(),true)||it.pinyin.contains(search.trim(),true)||it.meaning.contains(search.trim(),true)) } } }
  Column(Modifier.fillMaxSize().padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
   Text("Từ điển TrungTalk",style=MaterialTheme.typography.headlineSmall)
   Text("HSK 3.0 đầy đủ · 11.000 mục · tải & lưu offline",style=MaterialTheme.typography.bodySmall)
