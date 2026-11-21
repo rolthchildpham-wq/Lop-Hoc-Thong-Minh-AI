@@ -21,7 +21,7 @@ class BackendClient(context: Context) {
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(45, TimeUnit.SECONDS)
         .writeTimeout(20, TimeUnit.SECONDS)
-        .callTimeout(45, TimeUnit.SECONDS)
+        .callTimeout(80, TimeUnit.SECONDS)
         .retryOnConnectionFailure(true)
         .build()
     private val jsonType = "application/json; charset=utf-8".toMediaType()
