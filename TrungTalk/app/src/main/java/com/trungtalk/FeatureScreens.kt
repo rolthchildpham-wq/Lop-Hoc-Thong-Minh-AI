@@ -307,6 +307,8 @@ fun SrsScreen() {
  val scope=rememberCoroutineScope()
  val aiPrefs=remember{ctx.getSharedPreferences("trungtalk_flashcard_progress",android.content.Context.MODE_PRIVATE)}
  val allCards by dao.all().collectAsState(initial=emptyList())
+ var dictionary by remember { mutableStateOf<List<DictWord>>(starterDictionary) }
+ LaunchedEffect(Unit) { runCatching { dictionary=HskVocabularyRepository.load(ctx) } }
  var due by remember{mutableStateOf<List<SrsCard>>(emptyList())}
  var busy by remember{mutableStateOf(false)}
  var reviewError by remember{mutableStateOf("")}
@@ -324,7 +326,7 @@ fun SrsScreen() {
   }
   due.forEach{card->Card(Modifier.fillMaxWidth()){Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
    Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically){Text(card.cardId,style=MaterialTheme.typography.titleLarge,modifier=Modifier.weight(1f));IconButton(onClick={TrungTalkSpeech.speak(ctx,card.cardId)}){Text("🔊")}}
-   val dictionaryWord=starterDictionary.firstOrNull { it.hanzi == card.cardId }
+   val dictionaryWord=dictionary.firstOrNull { it.hanzi == card.cardId }
    if(dictionaryWord!=null) {
     Text(dictionaryWord.pinyin,style=MaterialTheme.typography.titleMedium,color=MaterialTheme.colorScheme.primary)
     Text(dictionaryWord.meaning,style=MaterialTheme.typography.bodyLarge)
@@ -566,6 +568,9 @@ fun VocabularyScreen() {
  val scope=rememberCoroutineScope()
  val prefs=remember { context.getSharedPreferences("vocabulary_prefs",android.content.Context.MODE_PRIVATE) }
  var search by rememberSaveable { mutableStateOf("") }
+ val viPrefs=remember { context.getSharedPreferences("hsk_vietnamese_glosses",android.content.Context.MODE_PRIVATE) }
+ var translating by remember { mutableStateOf(setOf<String>()) }
+ var viGlosses by remember { mutableStateOf(viPrefs.all.mapValues { it.value.toString() }) }
  var remoteWords by remember { mutableStateOf<List<DictWord>>(emptyList()) }
  var hskLoading by remember { mutableStateOf(false) }
  var hskLoadError by remember { mutableStateOf("") }
@@ -606,8 +611,21 @@ fun VocabularyScreen() {
        IconButton(onClick={TrungTalkSpeech.speak(context,word.hanzi)}) { Text("🔊") }
       }
       Text(word.traditional+" · "+word.pinyin,style=MaterialTheme.typography.titleMedium)
-      Text(word.meaning,style=MaterialTheme.typography.bodyLarge)
+      Text(viGlosses[word.hanzi] ?: word.meaning,style=MaterialTheme.typography.bodyLarge)
       Text(word.example,style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.secondary)
+      OutlinedButton(enabled=word.hanzi !in translating,onClick={
+       translating=translating+word.hanzi
+       scope.launch {
+        try {
+         val prompt="Dịch từ tiếng Trung sang tiếng Việt chính xác và ngắn gọn. Trả lời chỉ nghĩa tiếng Việt, không giải thích thêm. Từ: ${word.hanzi}; Pinyin: ${word.pinyin}; nghĩa tiếng Anh tham khảo: ${word.meaning}. Cho 1-3 nghĩa thường dùng, phân tách bằng dấu chấm phẩy."
+         val vi=BackendClient(context).chat(emptyList(),prompt).trim()
+         if(vi.isNotBlank()) { viGlosses=viGlosses+ (word.hanzi to vi); viPrefs.edit().putString(word.hanzi,vi).apply() }
+         else srsMessage="AI chưa trả nghĩa cho ${word.hanzi}."
+        } catch(e:Exception) { srsMessage="Dịch ${word.hanzi} lỗi: ${e.message ?: "không kết nối"}" }
+        finally { translating=translating-word.hanzi }
+       }
+      },modifier=Modifier.fillMaxWidth()){Text(if(word.hanzi in translating) "Đang dịch nghĩa…" else if(viGlosses.containsKey(word.hanzi)) "✓ Đã lưu nghĩa tiếng Việt" else "🌐 Dịch nghĩa tiếng Việt")}
+
       OutlinedButton(enabled=word.hanzi !in srsBusy,onClick={
        srsBusy=srsBusy+word.hanzi
        scope.launch {
