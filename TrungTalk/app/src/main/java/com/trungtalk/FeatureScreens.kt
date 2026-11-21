@@ -171,58 +171,33 @@ fun HskScreen() {
  var latest by remember { mutableIntStateOf(prefs.getInt("latest",0)) }
  var totalScore by remember { mutableIntStateOf(prefs.getInt("total_score",0)) }
  var confirmReset by remember { mutableStateOf(false) }
- val questions=remember { listOf(
-  Triple("你好 nghĩa là gì?",listOf("Xin chào","Tạm biệt","Cảm ơn"),0),
-  Triple("谢谢 nghĩa là gì?",listOf("Xin lỗi","Cảm ơn","Không có"),1),
-  Triple("工作 nghĩa là gì?",listOf("Nhà máy","Công việc","Chất lượng"),1),
-  Triple("再见 nghĩa là gì?",listOf("Tạm biệt","Xin mời","Hôm nay"),0),
-  Triple("水 nghĩa là gì?",listOf("Cơm","Nước","Trà"),1),
-  Triple("学校 nghĩa là gì?",listOf("Trường học","Công ty","Nhà"),0),
-  Triple("朋友 nghĩa là gì?",listOf("Bạn bè","Gia đình","Giáo viên"),0),
-  Triple("老师 nghĩa là gì?",listOf("Bác sĩ","Giáo viên","Công nhân"),1),
-  Triple("今天 nghĩa là gì?",listOf("Ngày mai","Hôm qua","Hôm nay"),2),
-  Triple("明天 nghĩa là gì?",listOf("Ngày mai","Hôm nay","Buổi tối"),0),
-  Triple("吃 nghĩa là gì?",listOf("Uống","Ăn","Ngủ"),1),
-  Triple("喝 nghĩa là gì?",listOf("Uống","Ăn","Đi"),0),
-  Triple("喜欢 nghĩa là gì?",listOf("Không thích","Muốn đi","Thích"),2),
-  Triple("中国 nghĩa là gì?",listOf("Việt Nam","Trung Quốc","Nhật Bản"),1),
-  Triple("越南 nghĩa là gì?",listOf("Việt Nam","Trung Quốc","Hàn Quốc"),0),
-  Triple("大 nghĩa là gì?",listOf("Nhỏ","Dài","To"),2),
-  Triple("小 nghĩa là gì?",listOf("To","Nhỏ","Cao"),1),
-  Triple("多少钱 nghĩa là gì?",listOf("Ở đâu?","Bao nhiêu tiền?","Mấy giờ?"),1),
-  Triple("现在 nghĩa là gì?",listOf("Bây giờ","Sau này","Hôm qua"),0),
-  Triple("工作忙 nghĩa là gì?",listOf("Đi chơi","Bận công việc","Tan làm"),1),
-  Triple("家 nghĩa là gì?",listOf("Trường học","Cửa hàng","Nhà"),2),
-  Triple("医院 nghĩa là gì?",listOf("Bệnh viện","Nhà máy","Nhà ga"),0),
-  Triple("买 nghĩa là gì?",listOf("Bán","Mua","Đổi"),1),
-  Triple("再 nghĩa là gì?",listOf("Không","Đã","Lại / thêm lần nữa"),2)
- ).shuffled().map { q -> val answer=q.second[q.third]; val options=q.second.shuffled(); Triple(q.first,options,options.indexOf(answer)) } }
- var index by remember { mutableIntStateOf(0) }
- var score by remember { mutableIntStateOf(0) }
- var chosen by remember { mutableIntStateOf(-1) }
- var missed by remember { mutableStateOf(prefs.getStringSet("missed_questions",emptySet())?.toSet() ?: emptySet()) }
- val finished=index>=questions.size
- LaunchedEffect(finished) {
-  if(finished) {
-   latest=score
-   attempts+=1
-   totalScore+=score
-   if(score>best) best=score
-   prefs.edit().putInt("attempts",attempts).putInt("best",best).putInt("latest",latest).putInt("total_score",totalScore).apply()
+ var quizDictionary by remember { mutableStateOf<List<DictWord>>(emptyList()) }
+ LaunchedEffect(Unit) { runCatching { quizDictionary=HskVocabularyRepository.load(ctx) } }
+ val questions=remember(quizDictionary) {
+  val glosses=ctx.getSharedPreferences("hsk_vietnamese_glosses",android.content.Context.MODE_PRIVATE)
+  val source=(starterDictionary+quizDictionary).distinctBy { it.hanzi+"|"+it.pinyin }
+  val candidates=source.mapNotNull { w ->
+   val vi=glosses.getString(w.hanzi,null)?.trim().orEmpty()
+   val en=w.meaning.removePrefix("Nghĩa tham khảo (EN): ").trim()
+   val meaning=vi.ifBlank { en }
+   if(meaning.isBlank() || meaning=="Chưa có nghĩa trong dữ liệu nguồn") null else Triple(w,meaning,vi.isNotBlank())
+  }.distinctBy { it.second }
+  val dynamic=candidates.shuffled().take(24).map { item ->
+   val wrong=candidates.filter { it.second!=item.second }.map { it.second }.distinct().shuffled().take(2)
+   val options=(wrong+item.second).shuffled()
+   Triple(item.first.hanzi+" nghĩa là gì?"+if(item.third) "" else " (EN tham khảo)",options,options.indexOf(item.second))
   }
- }
- Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-  Text("Luyện từ vựng HSK",style=MaterialTheme.typography.headlineSmall)
-  Card(Modifier.fillMaxWidth()){Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){
-   Text("Thống kê luyện tập",style=MaterialTheme.typography.titleMedium)
-   Text("Số bài đã hoàn thành: $attempts")
-   Text("Điểm cao nhất: $best/24")
-   Text("Bài gần nhất: $latest/24")
-   Text("Điểm trung bình: ${if(attempts>0) totalScore/attempts else 0}/24")
-   TextButton(onClick={confirmReset=true}){Text("Xóa thống kê")}
-  }}
-  if(confirmReset) AlertDialog(onDismissRequest={confirmReset=false},title={Text("Xóa thống kê HSK?")},text={Text("Xóa số lần thi và các điểm đã lưu trên thiết bị?")},confirmButton={TextButton(onClick={attempts=0;best=0;latest=0;totalScore=0;prefs.edit().remove("attempts").remove("best").remove("latest").remove("total_score").apply();confirmReset=false}){Text("Xóa")}},dismissButton={TextButton(onClick={confirmReset=false}){Text("Hủy")}})
-  if(finished){
+  if(dynamic.size>=8) dynamic else listOf(
+   Triple("你好 nghĩa là gì?",listOf("Xin chào","Tạm biệt","Cảm ơn"),0),
+   Triple("谢谢 nghĩa là gì?",listOf("Xin lỗi","Cảm ơn","Không có"),1),
+   Triple("工作 nghĩa là gì?",listOf("Nhà máy","Công việc","Chất lượng"),1),
+   Triple("再见 nghĩa là gì?",listOf("Tạm biệt","Xin mời","Hôm nay"),0),
+   Triple("水 nghĩa là gì?",listOf("Cơm","Nước","Trà"),1),
+   Triple("学校 nghĩa là gì?",listOf("Trường học","Công ty","Nhà"),0),
+   Triple("朋友 nghĩa là gì?",listOf("Bạn bè","Gia đình","Giáo viên"),0),
+   Triple("老师 nghĩa là gì?",listOf("Bác sĩ","Giáo viên","Công nhân"),1)
+  ).shuffled()
+ }  if(finished){
    Text("Hoàn thành ${questions.size} câu!",style=MaterialTheme.typography.titleLarge)
    Text("Kết quả: $score/${questions.size} · ${score*100/questions.size}%")
    LinearProgressIndicator(progress=score.toFloat()/questions.size,modifier=Modifier.fillMaxWidth())
