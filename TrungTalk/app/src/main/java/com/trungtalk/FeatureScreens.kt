@@ -166,13 +166,14 @@ fun RoleplayScreen() {
 fun HskScreen() {
  val ctx=LocalContext.current
  val prefs=remember { ctx.getSharedPreferences("trungtalk_hsk_quiz_stats",android.content.Context.MODE_PRIVATE) }
- var attempts by remember { mutableIntStateOf(prefs.getInt("attempts",0)) }
- var best by remember { mutableIntStateOf(prefs.getInt("best",0)) }
- var latest by remember { mutableIntStateOf(prefs.getInt("latest",0)) }
- var totalScore by remember { mutableIntStateOf(prefs.getInt("total_score",0)) }
- var confirmReset by remember { mutableStateOf(false) }
  var quizDictionary by remember { mutableStateOf<List<DictWord>>(emptyList()) }
- LaunchedEffect(Unit) { runCatching { quizDictionary=HskVocabularyRepository.load(ctx) } }
+ var loading by remember { mutableStateOf(true) }
+ var loadError by remember { mutableStateOf("") }
+ LaunchedEffect(Unit) {
+  try { quizDictionary=HskVocabularyRepository.load(ctx) }
+  catch(e:Exception) { loadError=e.message ?: "Không tải được từ vựng HSK" }
+  finally { loading=false }
+ }
  val questions=remember(quizDictionary) {
   val glosses=ctx.getSharedPreferences("hsk_vietnamese_glosses",android.content.Context.MODE_PRIVATE)
   val source=(starterDictionary+quizDictionary).distinctBy { it.hanzi+"|"+it.pinyin }
@@ -181,40 +182,55 @@ fun HskScreen() {
    val en=w.meaning.removePrefix("Nghĩa tham khảo (EN): ").trim()
    val meaning=vi.ifBlank { en }
    if(meaning.isBlank() || meaning=="Chưa có nghĩa trong dữ liệu nguồn") null else Triple(w,meaning,vi.isNotBlank())
-  }.distinctBy { it.second }
-  val dynamic=candidates.shuffled().take(24).map { item ->
+  }.distinctBy { it.second }.filter { it.second.isNotBlank() }
+  candidates.shuffled().take(20).map { item ->
    val wrong=candidates.filter { it.second!=item.second }.map { it.second }.distinct().shuffled().take(2)
    val options=(wrong+item.second).shuffled()
    Triple(item.first.hanzi+" nghĩa là gì?"+if(item.third) "" else " (EN tham khảo)",options,options.indexOf(item.second))
   }
-  if(dynamic.size>=8) dynamic else listOf(
-   Triple("你好 nghĩa là gì?",listOf("Xin chào","Tạm biệt","Cảm ơn"),0),
-   Triple("谢谢 nghĩa là gì?",listOf("Xin lỗi","Cảm ơn","Không có"),1),
-   Triple("工作 nghĩa là gì?",listOf("Nhà máy","Công việc","Chất lượng"),1),
-   Triple("再见 nghĩa là gì?",listOf("Tạm biệt","Xin mời","Hôm nay"),0),
-   Triple("水 nghĩa là gì?",listOf("Cơm","Nước","Trà"),1),
-   Triple("学校 nghĩa là gì?",listOf("Trường học","Công ty","Nhà"),0),
-   Triple("朋友 nghĩa là gì?",listOf("Bạn bè","Gia đình","Giáo viên"),0),
-   Triple("老师 nghĩa là gì?",listOf("Bác sĩ","Giáo viên","Công nhân"),1)
-  ).shuffled()
- }  if(finished){
+ }
+ var index by rememberSaveable { mutableIntStateOf(0) }
+ var score by rememberSaveable { mutableIntStateOf(0) }
+ var chosen by rememberSaveable { mutableIntStateOf(-1) }
+ var missed by remember { mutableStateOf(prefs.getStringSet("missed_questions",emptySet())?.toSet() ?: emptySet()) }
+ var finished by rememberSaveable { mutableStateOf(false) }
+ Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+  Text("Kiểm tra từ vựng HSK",style=MaterialTheme.typography.headlineSmall)
+  Text("Câu hỏi được tạo từ bộ từ vựng tải về; nghĩa tiếng Anh chỉ dùng tham khảo khi chưa có nghĩa Việt.")
+  if(loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+  if(loadError.isNotBlank()) Text("Nguồn HSK lỗi: $loadError",color=MaterialTheme.colorScheme.error)
+  if(questions.isEmpty()) Text("Chưa có dữ liệu để tạo bài kiểm tra.")
+  else if(finished) {
    Text("Hoàn thành ${questions.size} câu!",style=MaterialTheme.typography.titleLarge)
    Text("Kết quả: $score/${questions.size} · ${score*100/questions.size}%")
-   LinearProgressIndicator(progress=score.toFloat()/questions.size,modifier=Modifier.fillMaxWidth())
-   Button(onClick={index=0;score=0;chosen=-1},modifier=Modifier.fillMaxWidth()){Text("Làm bài mới")}
-   if(missed.isNotEmpty()){
+   LinearProgressIndicator(progress={score.toFloat()/questions.size},modifier=Modifier.fillMaxWidth())
+   Button(onClick={index=0;score=0;chosen=-1;finished=false},modifier=Modifier.fillMaxWidth()){Text("Làm bài mới")}
+   if(missed.isNotEmpty()) {
     Text("Câu cần ôn lại (${missed.size})",style=MaterialTheme.typography.titleMedium)
     missed.forEach { Text("• $it") }
     OutlinedButton(onClick={missed=emptySet();prefs.edit().remove("missed_questions").apply()},modifier=Modifier.fillMaxWidth()){Text("Xóa danh sách câu sai")}
    }
-  }else{
-   val q=questions[index]
+  } else {
+   val q=questions[index.coerceIn(0,questions.lastIndex)]
    Text("Câu ${index+1}/${questions.size} · Đúng $score")
-   LinearProgressIndicator(progress=index.toFloat()/questions.size,modifier=Modifier.fillMaxWidth())
-   Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically){Text(q.first,style=MaterialTheme.typography.headlineMedium,modifier=Modifier.weight(1f));IconButton(onClick={TrungTalkSpeech.speak(ctx,q.first)}){Text("🔊")}}
-   q.second.forEachIndexed{i,v->OutlinedButton(onClick={if(chosen<0){chosen=i;if(i==q.third)score++ else {missed=missed+q.first;prefs.edit().putStringSet("missed_questions",missed).apply()} }},modifier=Modifier.fillMaxWidth(),enabled=chosen<0){Text(v)}}
+   LinearProgressIndicator(progress={index.toFloat()/questions.size},modifier=Modifier.fillMaxWidth())
+   Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
+    Text(q.first,style=MaterialTheme.typography.headlineMedium,modifier=Modifier.weight(1f))
+    IconButton(onClick={TrungTalkSpeech.speak(ctx,q.first)}){Text("🔊")}
+   }
+   q.second.forEachIndexed { i,option ->
+    OutlinedButton(enabled=chosen<0,onClick={
+     if(chosen<0) {
+      chosen=i
+      if(i==q.third) score++ else {missed=missed+q.first;prefs.edit().putStringSet("missed_questions",missed).apply()}
+     }
+    },modifier=Modifier.fillMaxWidth()){Text(option)}
+   }
    if(chosen>=0) Text(if(chosen==q.third)"Chính xác! 🎉" else "Chưa đúng. Đáp án: ${q.second[q.third]}",color=if(chosen==q.third)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
-   Button(enabled=chosen>=0,onClick={index++;chosen=-1},modifier=Modifier.fillMaxWidth()){Text(if(index==questions.lastIndex)"Xem kết quả" else "Câu tiếp theo")}
+   Button(enabled=chosen>=0,onClick={
+    if(index==questions.lastIndex) finished=true else index++
+    chosen=-1
+   },modifier=Modifier.fillMaxWidth()){Text(if(index==questions.lastIndex)"Xem kết quả" else "Câu tiếp theo")}
   }
  }
 }
@@ -559,7 +575,7 @@ fun VocabularyScreen() {
  var srsMessage by rememberSaveable { mutableStateOf("") }
  val dictionary=remember(remoteWords) { (starterDictionary+remoteWords).distinctBy { it.hanzi+"|"+it.pinyin } }
  // Cache filtering until a search/filter/favorite input changes; avoid repeated 11k scans on unrelated recompositions.
- val filtered=remember(dictionary,level,favoritesOnly,favorites,search) { dictionary.filter { (level==0||it.level==level) && (!favoritesOnly||it.hanzi in favorites) && (search.isBlank()||it.hanziContains(search)||it.traditional.contains(search.trim(),true)||it.pinyin.contains(search.trim(),true)||it.meaning.contains(search.trim(),true)) } } }
+  val filtered=remember(dictionary,level,favoritesOnly,favorites,search) { dictionary.filter { (level==0||it.level==level) && (!favoritesOnly||it.hanzi in favorites) && (search.isBlank()||it.hanziContains(search)||it.traditional.contains(search.trim(),true)||it.pinyin.contains(search.trim(),true)||it.meaning.contains(search.trim(),true)) }
  Column(Modifier.fillMaxSize().padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
   Text("Từ điển TrungTalk",style=MaterialTheme.typography.headlineSmall)
   Text("HSK 3.0 đầy đủ · 11.000 mục · tải & lưu offline",style=MaterialTheme.typography.bodySmall)
@@ -599,7 +615,7 @@ fun VocabularyScreen() {
          if(vi.isNotBlank()) { viGlosses=viGlosses+ (word.hanzi to vi); viPrefs.edit().putString(word.hanzi,vi).apply() }
          else srsMessage="AI chưa trả nghĩa cho ${word.hanzi}."
         } catch(e:Exception) { srsMessage="Dịch ${word.hanzi} lỗi: ${e.message ?: "không kết nối"}" }
-        finally { translating=translating-word.hanzi }
+        finally { translating=translating - word.hanzi }
        }
       },modifier=Modifier.fillMaxWidth()){Text(if(word.hanzi in translating) "Đang dịch nghĩa…" else if(viGlosses.containsKey(word.hanzi)) "✓ Đã lưu nghĩa tiếng Việt" else "🌐 Dịch nghĩa tiếng Việt")}
 
