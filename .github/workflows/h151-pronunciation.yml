@@ -1,0 +1,48 @@
+name: H151 pronunciation integration and tests
+on:
+  push:
+    branches:
+      - feat/h151-english-mandarin-pronunciation-20261121
+    paths:
+      - pronunciation-h151.js
+      - tools/inject-pronunciation-h151.py
+      - tests/pronunciation-h151.test.cjs
+      - .github/workflows/h151-pronunciation.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate module syntax and pronunciation scenarios
+        run: |
+          node --check pronunciation-h151.js
+          node --test tests/pronunciation-h151.test.cjs
+      - name: Inject into full HTML checkout
+        run: |
+          python3 tools/inject-pronunciation-h151.py
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('index.html').read_text(encoding='utf-8')
+          assert s.count('pronunciation-h151.js?v=h151-20261121') == 1
+          assert s.count('</body>') == 1
+          print('Root speech injection validated')
+          PY
+      - name: Commit updated root HTML to feature branch
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "Root HTML already up to date"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "feat(tts): load H151 pronunciation routing in root learning page"
+          git push origin HEAD:feat/h151-english-mandarin-pronunciation-20261121
