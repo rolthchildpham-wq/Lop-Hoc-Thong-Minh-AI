@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.clickable
 import android.speech.tts.TextToSpeech
 import java.util.Locale
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -521,6 +522,42 @@ private val starterDictionary = listOf(
  DictWord("再","再","zài","Lại; lần nữa",1,"请再说一次。"),
  DictWord("一起工作","一起工作","yì qǐ gōng zuò","Cùng làm việc",3,"我们一起工作。")
 )
+ DictWord("影响","影響","yǐng xiǎng","Ảnh hưởng",4,"这会影响质量。"),
+ DictWord("提高","提高","tí gāo","Nâng cao",4,"提高效率很重要。"),
+ DictWord("降低","降低","jiàng dī","Giảm xuống",4,"降低成本。"),
+ DictWord("改善","改善","gǎi shàn","Cải thiện",4,"我们需要改善流程。"),
+ DictWord("适合","適合","shì hé","Phù hợp",4,"这个方法很适合。"),
+ DictWord("经验","經驗","jīng yàn","Kinh nghiệm",4,"他有很多经验。"),
+ DictWord("效果","效果","xiào guǒ","Hiệu quả",4,"效果很好。"),
+ DictWord("原因","原因","yuán yīn","Nguyên nhân",4,"请说明原因。"),
+ DictWord("结果","結果","jié guǒ","Kết quả",4,"结果出来了。"),
+ DictWord("按照","按照","àn zhào","Theo; căn cứ",4,"按照计划进行。"),
+ DictWord("及时","及時","jí shí","Kịp thời",4,"请及时反馈。"),
+ DictWord("认真","認真","rèn zhēn","Nghiêm túc",4,"认真检查。"),
+ DictWord("态度","態度","tài du","Thái độ",5,"工作态度很重要。"),
+ DictWord("沟通","溝通","gōu tōng","Giao tiếp",5,"我们需要沟通。"),
+ DictWord("协调","協調","xié tiáo","Điều phối",5,"请协调各部门。"),
+ DictWord("承担","承擔","chéng dān","Đảm nhận",5,"他承担这个任务。"),
+ DictWord("措施","措施","cuò shī","Biện pháp",5,"采取有效措施。"),
+ DictWord("执行","執行","zhí xíng","Thực hiện",5,"严格执行标准。"),
+ DictWord("资源","資源","zī yuán","Nguồn lực",5,"合理使用资源。"),
+ DictWord("趋势","趨勢","qū shì","Xu hướng",5,"了解市场趋势。"),
+ DictWord("分析","分析","fēn xī","Phân tích",5,"分析问题原因。"),
+ DictWord("调整","調整","tiáo zhěng","Điều chỉnh",5,"及时调整计划。"),
+ DictWord("稳定","穩定","wěn dìng","Ổn định",5,"保持生产稳定。"),
+ DictWord("规范","規範","guī fàn","Quy chuẩn",6,"操作必须规范。"),
+ DictWord("落实","落實","luò shí","Triển khai; thực hiện",6,"落实改善措施。"),
+ DictWord("评估","評估","píng gū","Đánh giá",6,"评估风险。"),
+ DictWord("应对","應對","yìng duì","Ứng phó",6,"应对突发情况。"),
+ DictWord("优先","優先","yōu xiān","Ưu tiên",6,"安全工作优先。"),
+ DictWord("明确","明確","míng què","Rõ ràng",6,"明确责任。"),
+ DictWord("保障","保障","bǎo zhàng","Đảm bảo; bảo vệ",6,"保障员工安全。"),
+ DictWord("监督","監督","jiān dū","Giám sát",6,"加强监督。"),
+ DictWord("持续","持續","chí xù","Liên tục; duy trì",6,"持续改善。"),
+ DictWord("综合","綜合","zōng hé","Tổng hợp",6,"综合分析数据。"),
+ DictWord("潜在","潛在","qián zài","Tiềm ẩn",6,"识别潜在风险。"),
+ DictWord("目标","目標","mù biāo","Mục tiêu",6,"明确目标和期限。"),
+
 
 @Composable
 fun VocabularyScreen() {
@@ -540,8 +577,8 @@ fun VocabularyScreen() {
   Text("Từ điển TrungTalk",style=MaterialTheme.typography.headlineSmall)
   Text("Tra nhanh từ Hán · Pinyin · nghĩa tiếng Việt",style=MaterialTheme.typography.bodySmall)
   OutlinedTextField(search,{search=it},label={Text("Tìm Hán tự, Pinyin hoặc nghĩa")},modifier=Modifier.fillMaxWidth(),singleLine=true)
-  Row(horizontalArrangement=Arrangement.spacedBy(5.dp)) {
-   (0..3).forEach { lv -> FilterChip(selected=level==lv,onClick={level=lv},label={Text(if(lv==0)"Tất cả" else "HSK $lv")}) }
+  Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(5.dp)) {
+   (0..6).forEach { lv -> FilterChip(selected=level==lv,onClick={level=lv},label={Text(if(lv==0)"Tất cả" else "HSK $lv")}) }
   }
   Row(verticalAlignment= androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(8.dp)) {
    Text("Hiển thị ${filtered.size} từ · ${favorites.size} yêu thích",style=MaterialTheme.typography.labelMedium,modifier=Modifier.weight(1f))
