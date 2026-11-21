@@ -20,15 +20,22 @@ function buildPrompt(path,payload) {
  return "";
 }
 async function generateWithModel(model,prompt,wantsJson,temperature,env) {
- const upstream=await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent?key="+encodeURIComponent(env.GEMINI_API_KEY),{
-  method:"POST",headers:{"Content-Type":"application/json"},
-  body:JSON.stringify({contents:[{role:"user",parts:[{text:prompt}]}],generationConfig:{temperature,maxOutputTokens:1800,...(wantsJson?{responseMimeType:"application/json"}:{})}})
- });
- const data=await upstream.json().catch(()=>({}));
- if(!upstream.ok) return {ok:false,status:upstream.status,error:data.error?.message||"Gemini request failed"};
- const text=data.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("").trim()||"";
- if(!text) return {ok:false,status:502,error:"empty_model_response"};
- return {ok:true,text};
+ const controller=new AbortController();
+ const timeout=setTimeout(()=>controller.abort(),25000);
+ try {
+  const upstream=await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent?key="+encodeURIComponent(env.GEMINI_API_KEY),{
+   method:"POST",headers:{"Content-Type":"application/json"},
+   signal:controller.signal,
+   body:JSON.stringify({contents:[{role:"user",parts:[{text:prompt}]}],generationConfig:{temperature,maxOutputTokens:1800,...(wantsJson?{responseMimeType:"application/json"}:{})}})
+  });
+  const data=await upstream.json().catch(()=>({}));
+  if(!upstream.ok) return {ok:false,status:upstream.status,error:data.error?.message||"Gemini request failed"};
+  const text=data.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("").trim()||"";
+  if(!text) return {ok:false,status:502,error:"empty_model_response"};
+  return {ok:true,text};
+ } catch(error) {
+  return {ok:false,status: error?.name==="AbortError"?504:502,error:error?.name==="AbortError"?"Gemini request timed out after 25 seconds":String(error?.message||error)};
+ } finally { clearTimeout(timeout); }
 }
 export default {
  async fetch(request,env) {
