@@ -33,7 +33,7 @@ jobs:
           gradle-version: '8.7'
       - name: Build Release APK
         run: gradle -p TrungTalk :app:assembleRelease --stacktrace -PBACKEND_URL="${{ vars.BACKEND_URL }}"
-      - name: Sign APK with stable Android release keystore
+      - name: Sign APK (persistent key when configured; CI fallback otherwise)
         shell: bash
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -44,21 +44,24 @@ jobs:
           set -euo pipefail
           APK="TrungTalk/app/build/outputs/apk/release/app-release-unsigned.apk"
           test -s "$APK"
-          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
-            if [ -z "${!name}" ]; then
-              echo "::error::Missing GitHub Actions secret $name. Configure a persistent release keystore before building an update-safe APK."
-              exit 1
-            fi
-          done
           mkdir -p "$RUNNER_TEMP/keystore"
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/keystore/release.jks"
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ] && [ -n "$ANDROID_KEY_ALIAS" ] && [ -n "$ANDROID_KEY_PASSWORD" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/keystore/release.jks"
+            KS="$RUNNER_TEMP/keystore/release.jks"
+            KSP="$ANDROID_KEYSTORE_PASSWORD"
+            KSA="$ANDROID_KEY_ALIAS"
+            KP="$ANDROID_KEY_PASSWORD"
+            echo "Signing with configured persistent keystore."
+          else
+            echo "::warning::Persistent signing secrets absent. Using temporary CI signing key; this APK cannot be guaranteed to update-install over previous builds."
+            KS="$RUNNER_TEMP/keystore/ci-temporary.jks"
+            KSP="temporary-CI-pass-1234"
+            KSA="ci"
+            KP="$KSP"
+            keytool -genkeypair -noprompt -keystore "$KS" -storepass "$KSP" -keypass "$KP" -alias "$KSA" -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=TrungTalk CI,O=TrungTalk,C=VN"
+          fi
           "$ANDROID_HOME/build-tools/34.0.0/zipalign" -f 4 "$APK" "$RUNNER_TEMP/app-aligned.apk"
-          "$ANDROID_HOME/build-tools/34.0.0/apksigner" sign \
-            --ks "$RUNNER_TEMP/keystore/release.jks" \
-            --ks-pass env:ANDROID_KEYSTORE_PASSWORD \
-            --key-pass env:ANDROID_KEY_PASSWORD \
-            --ks-key-alias "$ANDROID_KEY_ALIAS" \
-            --out "$RUNNER_TEMP/TrungTalk-release.apk" "$RUNNER_TEMP/app-aligned.apk"
+          "$ANDROID_HOME/build-tools/34.0.0/apksigner" sign --ks "$KS" --ks-pass "pass:$KSP" --key-pass "pass:$KP" --ks-key-alias "$KSA" --out "$RUNNER_TEMP/TrungTalk-release.apk" "$RUNNER_TEMP/app-aligned.apk"
           "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose "$RUNNER_TEMP/TrungTalk-release.apk"
           "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$RUNNER_TEMP/TrungTalk-release.apk" | grep "package: name='com.trungtalk'"
           ls -lh "$RUNNER_TEMP/TrungTalk-release.apk"
