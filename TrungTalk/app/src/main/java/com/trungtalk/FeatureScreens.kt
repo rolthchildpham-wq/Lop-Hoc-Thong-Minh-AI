@@ -520,8 +520,7 @@ private val starterDictionary = listOf(
  DictWord("女","女","nǚ","Nữ",1,"女员工"),
  DictWord("欢迎","歡迎","huān yíng","Hoan nghênh",2,"欢迎来到公司。"),
  DictWord("再","再","zài","Lại; lần nữa",1,"请再说一次。"),
- DictWord("一起工作","一起工作","yì qǐ gōng zuò","Cùng làm việc",3,"我们一起工作。")
-)
+ DictWord("一起工作","一起工作","yì qǐ gōng zuò","Cùng làm việc",3,"我们一起工作。"),
  DictWord("影响","影響","yǐng xiǎng","Ảnh hưởng",4,"这会影响质量。"),
  DictWord("提高","提高","tí gāo","Nâng cao",4,"提高效率很重要。"),
  DictWord("降低","降低","jiàng dī","Giảm xuống",4,"降低成本。"),
