@@ -95,11 +95,26 @@
     };
     if(originalSequence){
       manager.speakSequence=function(parts,opts={}){
-        const enhanced=(parts||[]).map(part=>{
-          if(!part||!language(part.lang))return part;
+        const enhanced=(parts||[]).filter(p=>p&&String(p.text||'').trim()).map(part=>{
+          if(!language(part.lang))return part;
           return {...part,text:textForVoice(part.text,part),lang:chooseLanguage(part),rate:part.rate??prefs.rate};
         });
-        return originalSequence(enhanced,opts);
+        if(!enhanced.length)return false;
+        if(window.AndroidVoice || !('speechSynthesis' in window))return originalSequence(enhanced,opts);
+        if(opts.cancel!==false)window.speechSynthesis.cancel();
+        const run=index=>{
+          if(index>=enhanced.length){opts.onend?.();return}
+          const part=enhanced[index];
+          const u=new SpeechSynthesisUtterance(part.text);
+          u.lang=part.lang||'vi-VN';u.rate=part.rate||1;u.pitch=part.pitch||1;
+          const voice=chooseVoice(u.lang,window.speechSynthesis.getVoices?.()||[]);
+          if(voice&&voiceScore(voice,u.lang)>0)u.voice=voice;
+          u.onstart=()=>{if(index===0)opts.onstart?.()};
+          u.onend=()=>run(index+1);
+          u.onerror=()=>{opts.onerror?.();run(index+1)};
+          window.speechSynthesis.speak(u);
+        };
+        run(0);return true;
       };
     }
     manager.__h151Installed=true;installed=true;
