@@ -74,13 +74,24 @@
       if(!family)return originalSpeak(text,opts);
       const next={...opts,lang:chooseLanguage(opts),rate:opts.rate??prefs.rate};
       const spoken=textForVoice(text,next);
-      // AndroidVoice is still routed by the existing native WebView bridge.
-      if(!window.AndroidVoice && 'speechSynthesis' in window){
-        const voices=window.speechSynthesis.getVoices?.()||[];
-        const voice=chooseVoice(next.lang,voices);
-        if(voice)next.voice=voice;
-      }
-      return originalSpeak(spoken,next);
+      // Android uses the existing Sherpa-ONNX bridge (Piper EN / Kokoro ZH).
+      if(window.AndroidVoice)return originalSpeak(spoken,next);
+      // The original web manager ignores opts.voice and may select an unrelated
+      // installed voice, so Web Speech needs explicit locale/voice assignment.
+      if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined')
+        return originalSpeak(spoken,next);
+      const utterance=new SpeechSynthesisUtterance(spoken);
+      utterance.lang=next.lang;
+      utterance.rate=next.rate;
+      utterance.pitch=next.pitch??1;
+      const voice=chooseVoice(next.lang,window.speechSynthesis.getVoices?.()||[]);
+      if(voice&&voice.lang?.toLowerCase().startsWith(family))utterance.voice=voice;
+      utterance.onstart=()=>next.onstart?.();
+      utterance.onend=()=>next.onend?.();
+      utterance.onerror=()=>next.onerror?.();
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+      return true;
     };
     if(originalSequence){
       manager.speakSequence=function(parts,opts={}){
