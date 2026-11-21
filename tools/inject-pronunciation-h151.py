@@ -10,7 +10,7 @@ snippet = '<script defer src="./pronunciation-h151.js?v=h151-20261121"></script>
 if 'pronunciation-h151.js' in content:
     print("H151 pronunciation already present; no change")
 elif "</body>" not in content:
-    raise SystemExit("Missing </body>, refusing partial modification")
+    raise SystemExit("Missing </body>; tail="+repr(content[-700:])+"; length="+str(len(content))+"; script-tags="+str(content.count("</script>"))+". Refusing unsafe modification")
 elif 'data-inline-source="voice-manager.js"' not in content:
     raise SystemExit("Missing existing voice manager, refusing unsafe modification")
 else:
