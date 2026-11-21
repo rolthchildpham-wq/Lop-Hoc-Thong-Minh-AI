@@ -569,7 +569,7 @@ fun VocabularyScreen() {
        scope.launch {
         try {
          if(srsDao.get(word.hanzi)==null) {
-          srsDao.save(SrsCard(cardId=word.hanzi,box=1,dueAt=System.currentTimeMillis(),repetitions=0))
+          srsDao.save(SrsCard(cardId=word.hanzi,box=1,dueAt=System.currentTimeMillis(),repetitions=0)))
           addedToSrs=addedToSrs+word.hanzi
           srsMessage="Đã thêm ${word.hanzi} vào ôn tập SRS."
          } else {
