@@ -32,7 +32,7 @@ jobs:
           from pathlib import Path
           s=Path('index.html').read_text(encoding='utf-8')
           assert s.count('pronunciation-h151.js?v=h151-20261121') == 1
-          assert s.count('</body>') == 1
+          assert s.count('</head>') == 1
           print('Root speech injection validated')
           PY
       - name: Commit updated root HTML to feature branch
