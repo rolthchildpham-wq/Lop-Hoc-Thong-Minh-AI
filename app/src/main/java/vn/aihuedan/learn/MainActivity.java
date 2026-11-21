@@ -124,6 +124,7 @@ public class MainActivity extends Activity {
             @Override public void onPageFinished(WebView view, String url) {
                 injectMobilePatch();
                 injectNativeVoiceHook();
+                injectPronunciationH151();
             }
 
             @Override public void onReceivedError(WebView view, WebResourceRequest req, WebResourceError err) {
@@ -137,6 +138,18 @@ public class MainActivity extends Activity {
 
     private void injectMobilePatch() {
         String js = "(function(){var id='apk-mobile-safe-patch';if(document.getElementById(id))return;var s=document.createElement('style');s.id=id;s.textContent='html,body{max-width:100%;overflow-x:hidden!important;}*{box-sizing:border-box;}img,video,canvas,svg{max-width:100%;}.bottom-console,.input-bar,.bottom-bar{max-width:100vw!important;}@media(max-width:700px){body{width:100%!important;min-width:0!important}.app,.main,.main-container{max-width:100%!important;min-width:0!important}}';document.head.appendChild(s);})();";
+        webView.evaluateJavascript(js, null);
+    }
+
+    private void injectPronunciationH151() {
+        // Same-origin asset published by EdgeOne. Native APK retains Sherpa-ONNX
+        // even when the optional online pronunciation enhancement is unavailable.
+        String js = "(function(){if(window.__h151ScriptRequested)return;" +
+            "if(location.protocol!=='https:'||location.hostname!=='aihuedanlearn.edgeone.dev')return;" +
+            "window.__h151ScriptRequested=true;var script=document.createElement('script');" +
+            "script.src='https://aihuedanlearn.edgeone.dev/pronunciation-h151.js?v=h151-20261121';" +
+            "script.defer=true;script.onerror=function(){window.__h151ScriptRequested=false};" +
+            "document.head.appendChild(script);})();";
         webView.evaluateJavascript(js, null);
     }
 
