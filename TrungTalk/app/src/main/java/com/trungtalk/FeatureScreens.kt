@@ -308,7 +308,8 @@ fun SrsScreen() {
  val aiPrefs=remember{ctx.getSharedPreferences("trungtalk_flashcard_progress",android.content.Context.MODE_PRIVATE)}
  val allCards by dao.all().collectAsState(initial=emptyList())
  var dictionary by remember { mutableStateOf<List<DictWord>>(starterDictionary) }
- LaunchedEffect(Unit) { runCatching { dictionary=HskVocabularyRepository.load(ctx) } }
+ val viGlossPrefs=remember { ctx.getSharedPreferences("hsk_vietnamese_glosses",android.content.Context.MODE_PRIVATE) }
+ LaunchedEffect(Unit) { runCatching { dictionary=(starterDictionary+HskVocabularyRepository.load(ctx)).distinctBy { it.hanzi+"|"+it.pinyin } } }
  var due by remember{mutableStateOf<List<SrsCard>>(emptyList())}
  var busy by remember{mutableStateOf(false)}
  var reviewError by remember{mutableStateOf("")}
@@ -329,7 +330,7 @@ fun SrsScreen() {
    val dictionaryWord=dictionary.firstOrNull { it.hanzi == card.cardId }
    if(dictionaryWord!=null) {
     Text(dictionaryWord.pinyin,style=MaterialTheme.typography.titleMedium,color=MaterialTheme.colorScheme.primary)
-    Text(dictionaryWord.meaning,style=MaterialTheme.typography.bodyLarge)
+    Text(viGlossPrefs.getString(dictionaryWord.hanzi,null) ?: dictionaryWord.meaning,style=MaterialTheme.typography.bodyLarge)
     Text("Ví dụ: ${dictionaryWord.example}",style=MaterialTheme.typography.bodyMedium)
    } else {
     val aiWord=runCatching {
