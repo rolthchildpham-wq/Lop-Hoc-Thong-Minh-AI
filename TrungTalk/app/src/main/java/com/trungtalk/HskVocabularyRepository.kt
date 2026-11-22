@@ -22,7 +22,7 @@ object HskVocabularyRepository {
         try {
             if (cache.exists() && cache.length() > 1000) {
                 val cached = parse(cache.readText())
-                if (cached.isNotEmpty()) return@withContext cached
+                if (cached.isNotEmpty()) return@withContext applyVietnameseGloss(cached)
             }
         } catch (_: Exception) { /* corrupt cache: try online */ }
 
@@ -46,8 +46,69 @@ object HskVocabularyRepository {
         if (result.isEmpty()) throw IllegalStateException(failures.joinToString("; ").ifBlank { "Nguồn HSK không có dữ liệu." })
         // Save partial results too, so a temporary outage does not force a blank dictionary.
         try { cache.writeText(toCache(result)) } catch (_: Exception) { }
-        result
+        applyVietnameseGloss(result)
     }
+
+    // Verified starter glosses; remote English gloss remains explicitly labeled for all other entries.
+    private val vietnameseGloss = mapOf(
+        "失败" to "thất bại; không thành công",
+        "工作" to "công việc; làm việc",
+        "改善" to "cải thiện; cải tiến",
+        "男" to "nam; đàn ông",
+        "女" to "nữ; phụ nữ",
+        "成功" to "thành công",
+        "问题" to "vấn đề; câu hỏi",
+        "解决" to "giải quyết",
+        "需要" to "cần; nhu cầu",
+        "帮助" to "giúp đỡ; hỗ trợ",
+        "学习" to "học; học tập",
+        "开始" to "bắt đầu",
+        "结束" to "kết thúc",
+        "检查" to "kiểm tra",
+        "质量" to "chất lượng",
+        "安全" to "an toàn",
+        "时间" to "thời gian",
+        "公司" to "công ty",
+        "工厂" to "nhà máy",
+        "同事" to "đồng nghiệp",
+        "生产" to "sản xuất",
+        "机器" to "máy móc; máy",
+        "设备" to "thiết bị",
+        "材料" to "vật liệu; nguyên liệu",
+        "订单" to "đơn hàng",
+        "客户" to "khách hàng",
+        "会议" to "cuộc họp",
+        "报告" to "báo cáo",
+        "计划" to "kế hoạch",
+        "管理" to "quản lý",
+        "负责" to "chịu trách nhiệm; phụ trách",
+        "联系" to "liên hệ",
+        "确认" to "xác nhận",
+        "准备" to "chuẩn bị",
+        "要求" to "yêu cầu",
+        "完成" to "hoàn thành",
+        "发现" to "phát hiện; nhận thấy",
+        "原因" to "nguyên nhân",
+        "结果" to "kết quả",
+        "办法" to "cách; biện pháp",
+        "注意" to "chú ý; lưu ý",
+        "规定" to "quy định",
+        "同意" to "đồng ý",
+        "不同" to "khác nhau; không giống",
+        "因为" to "bởi vì; vì",
+        "所以" to "cho nên; vì vậy",
+        "但是" to "nhưng",
+        "如果" to "nếu",
+        "已经" to "đã",
+        "马上" to "ngay lập tức",
+        "今天" to "hôm nay",
+        "明天" to "ngày mai",
+        "昨天" to "hôm qua"
+    )
+
+    private fun applyVietnameseGloss(words: List<DictWord>): List<DictWord> =
+        words.map { word -> vietnameseGloss[word.hanzi]?.let { word.copy(meaning = it, example = word.example) } ?: word }
+
 
     private fun download(url: String): String {
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
