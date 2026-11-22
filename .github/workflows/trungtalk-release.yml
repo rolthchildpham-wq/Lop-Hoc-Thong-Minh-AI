@@ -65,6 +65,26 @@ jobs:
           "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose "$RUNNER_TEMP/TrungTalk-release.apk"
           "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$RUNNER_TEMP/TrungTalk-release.apk" | grep "package: name='com.trungtalk'"
           ls -lh "$RUNNER_TEMP/TrungTalk-release.apk"
+      - name: Audit APK size, package, version and signing certificate
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="$RUNNER_TEMP/TrungTalk-release.apk"
+          REPORT="$RUNNER_TEMP/TrungTalk-release-audit.txt"
+          echo "APK size bytes: $(stat -c %s "$APK")" > "$REPORT"
+          echo "APK size human: $(du -h "$APK" | cut -f1)" >> "$REPORT"
+          echo "Package/version:" >> "$REPORT"
+          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | grep -E "package:|sdkVersion|targetSdkVersion" >> "$REPORT"
+          echo "Signature verification:" >> "$REPORT"
+          "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose --print-certs "$APK" >> "$REPORT"
+          cat "$REPORT"
+      - name: Upload APK audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: TrungTalk-Release-Audit
+          path: ${{ runner.temp }}/TrungTalk-release-audit.txt
+          if-no-files-found: error
+          retention-days: 30
       - name: Upload installable Release APK
         uses: actions/upload-artifact@v4
         with:
