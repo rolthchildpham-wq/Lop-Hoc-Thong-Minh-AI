@@ -20,27 +20,42 @@ import com.trungtalk.data.db.*
 import com.trungtalk.ai.BackendClient
 import kotlinx.coroutines.launch
 
-/** Shared speech engine for feature screens; initializes lazily and queues the first request. */
+/** Shared speech engine: queues text while initialization runs and checks Chinese voice availability. */
 private object TrungTalkSpeech {
  private var engine: TextToSpeech? = null
  private var ready = false
  private var pending: Pair<String, Locale>? = null
+
+ private fun speakReady(text: String, locale: Locale) {
+  val tts = engine ?: return
+  val languageStatus = tts.setLanguage(locale)
+  if (languageStatus == TextToSpeech.LANG_MISSING_DATA ||
+      languageStatus == TextToSpeech.LANG_NOT_SUPPORTED) {
+   pending = text to locale
+   return
+  }
+  pending = null
+  tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "tr-talk-shared")
+ }
+
  fun speak(context: Context, text: String, locale: Locale = Locale.SIMPLIFIED_CHINESE) {
   if (text.isBlank()) return
   if (engine == null) {
+   pending = text to locale
    engine = TextToSpeech(context.applicationContext) { status ->
     ready = status == TextToSpeech.SUCCESS
-    val queued = pending
-    if (ready && queued != null) {
-     val result = engine?.setLanguage(queued.second)
-     if (result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED) engine?.speak(queued.first, TextToSpeech.QUEUE_FLUSH, null, "tr-talk-shared")
-     pending = null
+    if (ready) {
+     val queued = pending
+     if (queued != null) speakReady(queued.first, queued.second)
     }
    }
+   return
   }
-  if (!ready) { pending = text to locale; return }
-  val result = engine?.setLanguage(locale)
-  if (result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED) engine?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "tr-talk-shared")
+  if (!ready) {
+   pending = text to locale
+   return
+  }
+  speakReady(text, locale)
  }
 }
 
