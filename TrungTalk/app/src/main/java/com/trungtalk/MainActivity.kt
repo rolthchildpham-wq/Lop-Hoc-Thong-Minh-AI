@@ -141,6 +141,9 @@ private fun SettingsScreen(dark: Boolean, onDarkChange: (Boolean) -> Unit) {
                 val aiChat = context.getSharedPreferences("trungtalk_ai_chat", android.content.Context.MODE_PRIVATE)
                 val roleplayPrefs = context.getSharedPreferences("trungtalk_roleplay", android.content.Context.MODE_PRIVATE)
                 val hskPrefs = context.getSharedPreferences("trungtalk_hsk_quiz_stats", android.content.Context.MODE_PRIVATE)
+                val vietnameseGlossPrefs = context.getSharedPreferences("hsk_vietnamese_glosses", android.content.Context.MODE_PRIVATE)
+                val vietnameseGlosses = org.json.JSONObject().apply { vietnameseGlossPrefs.all.forEach { (key, value) -> if (value is String) put(key, value) } }
+                val flashcardState = org.json.JSONObject().put("deckIndex", aiCards.getInt("deck_index", 0)).put("mastered", aiCards.getInt("mastered", 0)).put("again", aiCards.getInt("again", 0)).put("deckOrder", aiCards.getString("deck_order", ""))
                 val roleplay = org.json.JSONObject().apply { for (i in 0 until 5) put("history_$i", roleplayPrefs.getString("history_$i", "[]")) }
                 val hsk = org.json.JSONObject().apply { put("attempts",hskPrefs.getInt("attempts",0)); put("best",hskPrefs.getInt("best",0)); put("latest",hskPrefs.getInt("latest",0)); put("total_score",hskPrefs.getInt("total_score",0)); put("missed_questions",org.json.JSONArray((hskPrefs.getStringSet("missed_questions",emptySet()) ?: emptySet()).sorted())) }
                 val favorites = org.json.JSONArray((vocab.getStringSet("favorites", emptySet()) ?: emptySet()).sorted())
@@ -149,7 +152,7 @@ private fun SettingsScreen(dark: Boolean, onDarkChange: (Boolean) -> Unit) {
                 val database = com.trungtalk.data.db.TrungTalkDatabase.get(context)
                 val srsData = org.json.JSONArray().apply { database.srsDao().allForBackup().forEach { put(org.json.JSONObject().put("cardId",it.cardId).put("box",it.box).put("dueAt",it.dueAt).put("repetitions",it.repetitions)) } }
                 val grammarData = org.json.JSONArray().apply { database.grammarDao().allForBackup().forEach { put(org.json.JSONObject().put("targetWord",it.targetWord).put("pinyin",it.pinyin).put("meaning",it.meaning).put("userSentence",it.userSentence).put("practiceScore",it.practiceScore).put("correction",it.correction).put("feedback",it.feedback).put("createdAt",it.createdAt)) } }
-                val json = org.json.JSONObject().put("app", "TrungTalk").put("backupVersion", 4).put("exportedAt", System.currentTimeMillis()).put("completedLessons", org.json.JSONArray(completed.sorted())).put("favorites", favorites).put("aiFlashcards", cards).put("aiChatHistory", chat).put("srsCards", srsData).put("grammarHistory", grammarData).put("roleplayHistory", roleplay).put("hskStats", hsk)
+                val json = org.json.JSONObject().put("app", "TrungTalk").put("backupVersion", 5).put("exportedAt", System.currentTimeMillis()).put("completedLessons", org.json.JSONArray(completed.sorted())).put("favorites", favorites).put("aiFlashcards", cards).put("flashcardState", flashcardState).put("vietnameseGlosses", vietnameseGlosses).put("aiChatHistory", chat).put("srsCards", srsData).put("grammarHistory", grammarData).put("roleplayHistory", roleplay).put("hskStats", hsk)
                 context.contentResolver.openOutputStream(uri)?.use { it.write(json.toString(2).toByteArray(Charsets.UTF_8)) }
                 Toast.makeText(context, "Đã xuất tiến độ học (" + completed.size + " bài).", Toast.LENGTH_LONG).show()
             } catch (e: Exception) { Toast.makeText(context, "Xuất dữ liệu thất bại: " + e.message, Toast.LENGTH_LONG).show() }
@@ -160,7 +163,7 @@ private fun SettingsScreen(dark: Boolean, onDarkChange: (Boolean) -> Unit) {
             try {
                 val raw = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } ?: error("Không đọc được tệp")
                 val json = org.json.JSONObject(raw)
-                require(json.optString("app") == "TrungTalk" && json.optInt("backupVersion") in 1..4) { "Tệp sao lưu không đúng định dạng" }
+                require(json.optString("app") == "TrungTalk" && json.optInt("backupVersion") in 1..5) { "Tệp sao lưu không đúng định dạng" }
                 val arr = json.optJSONArray("completedLessons") ?: error("Thiếu dữ liệu bài học")
                 val ids = buildSet { for (i in 0 until arr.length()) { val id = arr.optString(i); if (id.isNotBlank()) add(id) } }
                 progress.restoreCompleted(ids)
@@ -169,6 +172,21 @@ private fun SettingsScreen(dark: Boolean, onDarkChange: (Boolean) -> Unit) {
                     val favorites = buildSet { for (i in 0 until favoritesArray.length()) { val word = favoritesArray.optString(i); if (word.isNotBlank()) add(word) } }
                     context.getSharedPreferences("vocabulary_prefs", android.content.Context.MODE_PRIVATE).edit().putStringSet("favorites", favorites).apply()
                     json.optJSONArray("aiFlashcards")?.let { context.getSharedPreferences("trungtalk_flashcard_progress", android.content.Context.MODE_PRIVATE).edit().putString("ai_cards_json", it.toString()).apply() }
+                    json.optJSONObject("flashcardState")?.let { state ->
+                        val flashcardPrefs = context.getSharedPreferences("trungtalk_flashcard_progress", android.content.Context.MODE_PRIVATE)
+                        flashcardPrefs.edit().putInt("deck_index", state.optInt("deckIndex", 0).coerceAtLeast(0)).putInt("mastered", state.optInt("mastered", 0).coerceAtLeast(0)).putInt("again", state.optInt("again", 0).coerceAtLeast(0)).putString("deck_order", state.optString("deckOrder", "")).apply()
+                    }
+                    json.optJSONObject("vietnameseGlosses")?.let { glosses ->
+                        val glossPrefs = context.getSharedPreferences("hsk_vietnamese_glosses", android.content.Context.MODE_PRIVATE)
+                        val editor = glossPrefs.edit()
+                        val keys = glosses.keys()
+                        while (keys.hasNext()) {
+                            val key = keys.next()
+                            val value = glosses.optString(key).trim()
+                            if (key.isNotBlank() && value.isNotBlank()) editor.putString(key, value)
+                        }
+                        editor.apply()
+                    }
                     json.optJSONArray("aiChatHistory")?.let { context.getSharedPreferences("trungtalk_ai_chat", android.content.Context.MODE_PRIVATE).edit().putString("history", it.toString()).apply() }
                     json.optJSONObject("roleplayHistory")?.let { roleplay ->
                         val roleplayPrefs = context.getSharedPreferences("trungtalk_roleplay", android.content.Context.MODE_PRIVATE)
@@ -235,7 +253,7 @@ private fun SettingsScreen(dark: Boolean, onDarkChange: (Boolean) -> Unit) {
 
         Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Sao lưu tiến độ học", style = MaterialTheme.typography.titleMedium)
-            Text("Hiện đã hoàn thành: " + completed.size + " bài. JSON gồm tiến độ bài học, từ yêu thích, flashcard AI, chat AI, hội thoại đóng vai, thống kê HSK, câu sai cần ôn, thẻ SRS và Grammar. Lịch sử luyện tập phút chưa được sao lưu.")
+            Text("Hiện đã hoàn thành: " + completed.size + " bài. JSON v5 gồm tiến độ bài học, từ yêu thích, flashcard AI và trạng thái bộ thẻ, nghĩa tiếng Việt đã dịch/lưu, chat AI, hội thoại đóng vai, thống kê HSK, câu sai cần ôn, thẻ SRS và Grammar. Lịch sử luyện tập phút chưa được sao lưu.")
             Button(onClick = { exportLauncher.launch("TrungTalk_Backup.json") }, modifier = Modifier.fillMaxWidth()) { Text("Xuất bản sao lưu") }
             OutlinedButton(onClick = { importLauncher.launch(arrayOf("application/json", "text/*")) }, modifier = Modifier.fillMaxWidth()) { Text("Nhập bản sao lưu") }
         } }
