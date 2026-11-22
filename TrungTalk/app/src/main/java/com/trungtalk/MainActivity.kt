@@ -200,7 +200,7 @@ private fun SettingsScreen(dark: Boolean, onDarkChange: (Boolean) -> Unit) {
         Text("Cài đặt TrungTalk", style = MaterialTheme.typography.headlineSmall)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Giao diện tối"); Switch(checked = dark, onCheckedChange = onDarkChange) }
         Text("Ngôn ngữ giao diện: Tiếng Việt (bản hiện tại). Bản song ngữ Việt/Anh chưa hoàn tất.")
-        Text("AI: cần Worker URL và GEMINI_API_KEY được cấu hình ở máy chủ.")
+        Text("AI: sử dụng TrungTalk Worker; cần mạng và dịch vụ AI phía máy chủ hoạt động.")
         var testTts by remember { mutableStateOf<TextToSpeech?>(null) }
         var ttsReady by rememberSaveable { mutableStateOf(false) }
         var ttsRate by rememberSaveable { mutableFloatStateOf(1f) }
@@ -707,7 +707,7 @@ private fun AiScreen() {
             confirmButton = { TextButton(onClick = { history.clear(); aiPrefs.edit().remove("history").apply(); error = ""; confirmClear = false }) { Text("Xóa") } },
             dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Hủy") } }
         )
-        Text("Hỏi bằng tiếng Việt hoặc tiếng Trung. Cần triển khai Worker và đặt BACKEND_URL khi build.")
+        Text("Hỏi bằng tiếng Việt hoặc tiếng Trung. TrungTalk kết nối AI qua Worker mặc định; nếu mất mạng, thử lại sau.")
         androidx.compose.foundation.lazy.LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(history) { item ->
                 Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) {
