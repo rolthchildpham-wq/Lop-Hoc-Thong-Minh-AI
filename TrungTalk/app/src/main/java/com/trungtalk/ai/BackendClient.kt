@@ -14,8 +14,8 @@ import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-class BackendClient(context: Context) {
-    private val baseUrl = BuildConfig.BACKEND_URL.trimEnd('/')
+class BackendClient(context: Context) {\n    companion object {\n        // Public TrungTalk Cloudflare Worker; avoids a blank BACKEND_URL in local/CI Release builds.\n        const val DEFAULT_BACKEND_URL = "https://trungtalk-proxy.rolthchildpham.workers.dev"\n    }
+    private val baseUrl = (BuildConfig.BACKEND_URL.trim().ifBlank { DEFAULT_BACKEND_URL }).trimEnd('/')
     private val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: "anonymous"
     private val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
