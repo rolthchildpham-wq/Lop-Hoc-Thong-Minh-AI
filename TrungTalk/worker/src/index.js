@@ -1,4 +1,4 @@
-const MODELS = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"];
+const MODELS = ["gemini-3.8-flash", "gemini-3.5-flash-lite"];
 const LIMIT = 25;
 const WINDOW = 60;
 const cors = {
@@ -40,14 +40,16 @@ async function generateWithModel(model,prompt,wantsJson,temperature,env) {
 export default {
  async fetch(request,env) {
   const url=new URL(request.url);
+  // Accept both native Android routes and the documented /api aliases.
+  const route=url.pathname.replace(/^\/api(?=\/)/,"");
   if(request.method==="OPTIONS") return new Response(null,{status:204,headers:cors});
-  if(url.pathname==="/health"&&request.method==="GET") return json({ok:true,service:"trungtalk-ai",models:MODELS,available:!!env.GEMINI_API_KEY,configured:!!env.GEMINI_API_KEY});
+  if(route==="/health"&&request.method==="GET") return json({ok:true,service:"trungtalk-ai",models:MODELS,available:!!env.GEMINI_API_KEY,configured:!!env.GEMINI_API_KEY});
   const routes=["/chat","/grammar","/evaluate","/flashcard"];
-  if(request.method!=="POST"||!routes.includes(url.pathname)) return json({error:"not_found"},404);
+  if(request.method!=="POST"||!routes.includes(route)) return json({error:"not_found"},404);
   if(!env.GEMINI_API_KEY) return json({error:"server_not_configured",detail:"Worker thiếu GEMINI_API_KEY"},503);
   let payload;
   try { payload=await request.json(); } catch { return json({error:"invalid_json"},400); }
-  const prompt=buildPrompt(url.pathname,payload||{});
+  const prompt=buildPrompt(route,payload||{});
   if(!prompt.trim()) return json({error:"empty_prompt"},400);
   const device=(request.headers.get("x-device-id")||"anonymous").slice(0,100);
   const bucket=Math.floor(Date.now()/1000/WINDOW);
@@ -57,8 +59,8 @@ export default {
    if(count>=LIMIT) return json({error:"rate_limit",retry_after:WINDOW},429);
    await env.RATE_LIMIT.put(key,String(count+1),{expirationTtl:120});
   }
-  const wantsJson=url.pathname!=="/chat";
-  const temperature=url.pathname==="/chat"?0.65:0.25;
+  const wantsJson=route!=="/chat";
+  const temperature=route==="/chat"?0.65:0.25;
   let last={status:502,error:"no_model_available"};
   for(const model of MODELS) {
    const result=await generateWithModel(model,prompt,wantsJson,temperature,env);
