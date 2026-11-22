@@ -532,9 +532,11 @@ private fun FlashcardScreen() {
     scope.launch {
      try {
       val previous=dao.get(word.hanzi)
-      val box=((previous?.box ?: 0)+1).coerceIn(1,5)
+      val previousBox=(previous?.box ?: 1).coerceIn(1,5)
+      val box=(previousBox+1).coerceAtMost(5)
       val repetitions=(previous?.repetitions ?: 0)+1
-      val days=listOf(1,3,7,14,30)[box-1]
+      // Match SrsScreen: schedule using the interval of the box being reviewed, not the destination box.
+      val days=listOf(1,3,7,14,30)[previousBox-1]
       dao.save(com.trungtalk.data.db.SrsCard(cardId=word.hanzi,box=box,dueAt=System.currentTimeMillis()+days*86400000L,repetitions=repetitions))
       mastered++;reviewPrefs.edit().putInt("mastered",mastered).apply();show=false;index=(index+1)%deck.size;reviewPrefs.edit().putInt("deck_index",index).apply()
      } catch(e:Exception) { aiError="Không lưu được lịch ôn tập: " + (e.message ?: "thử lại") }
