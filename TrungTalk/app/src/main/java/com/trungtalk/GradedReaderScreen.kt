@@ -24,7 +24,8 @@ private val readerStories=listOf(
  ReaderStory(2,"Chuẩn bị đơn hàng",listOf(ReaderWord("请","qǐng","xin; mời"),ReaderWord("看","kàn","xem"),ReaderWord("这","zhè","này"),ReaderWord("个","gè","cái"),ReaderWord("产品","chǎn pǐn","sản phẩm"),ReaderWord("有","yǒu","có"),ReaderWord("问","wèn","hỏi"),ReaderWord("题","tí","vấn đề"),ReaderWord("我们","wǒ men","chúng tôi"),ReaderWord("检查","jiǎn chá","kiểm tra"),ReaderWord("再","zài","lại"),ReaderWord("确认","què rèn","xác nhận"),ReaderWord("一下","yí xià","một chút"),ReaderWord("数量","shù liàng","số lượng")),listOf("请看这个产品。","这个产品有问题。","我们检查一下。","再确认数量。"),"Xin xem sản phẩm này. Sản phẩm này có vấn đề. Chúng ta kiểm tra một chút rồi xác nhận lại số lượng.","产品有问题时，我们做什么？",listOf("马上离开。","我们检查一下。","不工作。"),1),
  ReaderStory(3,"Cuộc họp tiến độ",listOf(ReaderWord("明","míng","ngày mai"),ReaderWord("进","jìn","tiến"),ReaderWord("度","dù","độ"),ReaderWord("报","bào","báo"),ReaderWord("告","gào","cáo"),ReaderWord("已","yǐ","đã"),ReaderWord("经","jīng","qua"),ReaderWord("完","wán","hoàn"),ReaderWord("成","chéng","thành"),ReaderWord("需","xū","cần"),ReaderWord("要","yào","cần"),ReaderWord("时","shí","thời"),ReaderWord("间","jiān","gian"),ReaderWord("开会","kāi huì","họp"),ReaderWord("我们","wǒ men","chúng tôi"),ReaderWord("请","qǐng","xin"),ReaderWord("确认","què rèn","xác nhận"),ReaderWord("明天","míng tiān","ngày mai"),ReaderWord("进度","jìn dù","tiến độ"),ReaderWord("报告","bào gào","báo cáo"),ReaderWord("已经","yǐ jīng","đã"),ReaderWord("完成","wán chéng","hoàn thành"),ReaderWord("需要","xū yào","cần"),ReaderWord("时间","shí jiān","thời gian")),listOf("明天开会。","进度报告已经完成。","我们需要时间。","请确认。"),"Ngày mai họp. Báo cáo tiến độ đã hoàn thành. Chúng tôi cần thời gian. Xin xác nhận.","进度报告怎么样？",listOf("已经完成。","不知道。","今天休息。"),0)
 )
-private fun uniqueReaderChars(story:ReaderStory)=story.words.map{it.hanzi}.distinct()
+private fun readerChineseChars(text:String)=text.filter{it.code in 0x4E00..0x9FFF}.map{it.toString()}
+private fun uniqueReaderChars(stories:List<ReaderStory>)=stories.flatMap{it.words.flatMap{readerChineseChars(it.hanzi)}}.distinct()
 
 @Composable
 fun GradedReaderScreen(){
@@ -34,12 +35,20 @@ fun GradedReaderScreen(){
  val scope=rememberCoroutineScope()
  var level by rememberSaveable{mutableIntStateOf(1)}
  var selected by rememberSaveable{mutableIntStateOf(0)}
- var mastered by remember{mutableStateOf(prefs.getStringSet("mastered",emptySet())?.toSet()?:emptySet())}
+ var mastered by remember{mutableStateOf(prefs.getStringSet("mastered",emptySet()).orEmpty().flatMap{readerChineseChars(it)}.toSet())}
  var showPinyin by rememberSaveable{mutableStateOf(true)}
  var showMeaning by rememberSaveable{mutableStateOf(true)}
  var quizAnswer by rememberSaveable{mutableIntStateOf(-1)}
  var quizChecked by rememberSaveable{mutableStateOf(false)}
  var completed by remember{mutableStateOf(prefs.getStringSet("completed",emptySet())?.toSet()?:emptySet())}
+ var reviewMode by rememberSaveable{mutableStateOf(false)}
+ var reviewQuestion by rememberSaveable{mutableIntStateOf(0)}
+ var reviewScore by rememberSaveable{mutableIntStateOf(0)}
+ var reviewHanzi by rememberSaveable{mutableStateOf("")}
+ var reviewMeaning by rememberSaveable{mutableStateOf("")}
+ var reviewChoices by rememberSaveable{mutableStateOf(emptyList<String>())}
+ var reviewSelected by rememberSaveable{mutableIntStateOf(-1)}
+ var reviewAnswered by rememberSaveable{mutableStateOf(false)}
  var tts by remember{mutableStateOf<TextToSpeech?>(null)}
  DisposableEffect(Unit){
   val holder=arrayOfNulls<TextToSpeech>(1)
@@ -47,26 +56,42 @@ fun GradedReaderScreen(){
   holder[0]=engine;tts=engine
   onDispose{engine.stop();engine.shutdown();tts=null}
  }
+ val level1Chars=uniqueReaderChars(readerStories.filter{it.level==1})
+ val level2Chars=uniqueReaderChars(readerStories.filter{it.level==2})
+ val level2Unlocked=level1Chars.all{it in mastered}
+ val level3Unlocked=(level1Chars+level2Chars).all{it in mastered}
  val stories=readerStories.filter{it.level==level}
  val story=stories.getOrNull(selected)?:stories.first()
- val chars=uniqueReaderChars(story)
+ val chars=uniqueReaderChars(stories)
  val known=chars.all{it in mastered}
+ LaunchedEffect(mastered){prefs.edit().putStringSet("mastered",mastered).apply()}
+ LaunchedEffect(level,selected){reviewMode=false;reviewQuestion=0;reviewScore=0;reviewHanzi="";reviewMeaning="";reviewChoices=emptyList();reviewSelected=-1;reviewAnswered=false}
+ fun makeReviewQuestion(number:Int){
+  val pool=story.words.filter{it.meaning.isNotBlank()}.distinctBy{it.hanzi}
+  if(pool.size<2){reviewMode=false;reviewQuestion=0;return}
+  val target=pool.random()
+  val wrong=pool.filter{it.hanzi!=target.hanzi}.map{it.meaning}.distinct().shuffled().take(3)
+  reviewHanzi=target.hanzi;reviewMeaning=target.meaning;reviewChoices=(wrong+target.meaning).distinct().shuffled();reviewSelected=-1;reviewAnswered=false;reviewQuestion=number;reviewMode=true
+ }
  Column(Modifier.fillMaxSize().padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
   Text("📚 Đọc hiểu theo cấp độ",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
   Text("Học chữ trước, mở truyện sau. Truyện là nội dung gốc dành cho người Việt học tiếng Trung.")
-  Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){(1..3).forEach{lv->FilterChip(selected=level==lv,onClick={level=lv;selected=0;quizAnswer=-1;quizChecked=false},label={Text("Level "+lv)})}}
+  Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){(1..3).forEach{lv->FilterChip(selected=level==lv,enabled=lv==1||(lv==2&&level2Unlocked)||(lv==3&&level3Unlocked),onClick={level=lv;selected=0;quizAnswer=-1;quizChecked=false},label={Text(if(lv==2&&!level2Unlocked||lv==3&&!level3Unlocked)"Level "+lv+" 🔒" else "Level "+lv)})}}
+  Text("Mastery tổng: ${mastered.size} chữ · Level 2 ${if(level2Unlocked)"mở" else "chưa mở"} · Level 3 ${if(level3Unlocked)"mở" else "chưa mở"}",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.secondary)
   Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){stories.forEachIndexed{i,s->FilterChip(selected=selected==i,onClick={selected=i;quizAnswer=-1;quizChecked=false},label={Text(s.title)})}}
   Text("Chữ cần học · "+chars.count{it in mastered}+"/"+chars.size+" đã biết",style=MaterialTheme.typography.titleSmall)
-  OutlinedButton(onClick={scope.launch{story.words.filter{it.hanzi in mastered}.forEach{w->if(srsDao.get(w.hanzi)==null)srsDao.save(SrsCard(cardId=w.hanzi,box=1,dueAt=System.currentTimeMillis(),repetitions=0))}}},modifier=Modifier.fillMaxWidth()){Text("🔁 Thêm chữ đã biết vào ô SRS")}
+  OutlinedButton(onClick={scope.launch{story.words.filter{readerChineseChars(it.hanzi).all{ch->ch in mastered}}.forEach{w->if(srsDao.get(w.hanzi)==null)srsDao.save(SrsCard(cardId=w.hanzi,box=1,dueAt=System.currentTimeMillis(),repetitions=0))}}},modifier=Modifier.fillMaxWidth()){Text("🔁 Thêm từ đã mastery vào ô SRS")}
   LazyColumn(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(8.dp)){
    item{
     Card{Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
-     Text("Chạm vào chữ để nghe",fontWeight=FontWeight.SemiBold)
+     Text("Chạm từng chữ để nghe và đánh dấu mastery; nút loa phát cả từ",fontWeight=FontWeight.SemiBold)
      story.words.forEach{w->
-      Row(Modifier.fillMaxWidth().clickable{tts?.speak(w.hanzi,TextToSpeech.QUEUE_FLUSH,null,"char-"+w.hanzi)}.padding(vertical=5.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)){
-       Text(w.hanzi,style=MaterialTheme.typography.headlineMedium)
+      Row(Modifier.fillMaxWidth().padding(vertical=5.dp),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically){
+       Row(horizontalArrangement=Arrangement.spacedBy(2.dp)){
+        readerChineseChars(w.hanzi).forEach{ch->FilterChip(selected=ch in mastered,onClick={mastered=if(ch in mastered)mastered-ch else mastered+ch;prefs.edit().putStringSet("mastered",mastered).apply();tts?.speak(ch,TextToSpeech.QUEUE_FLUSH,null,"char-"+ch)},label={Text(ch)})}
+       }
        Column(Modifier.weight(1f)){Text(w.pinyin);Text(w.meaning,style=MaterialTheme.typography.bodySmall)}
-       Checkbox(checked=w.hanzi in mastered,onCheckedChange={checked->mastered=if(checked)mastered+w.hanzi else mastered-w.hanzi;prefs.edit().putStringSet("mastered",mastered).apply()})
+       IconButton(onClick={tts?.speak(w.hanzi,TextToSpeech.QUEUE_FLUSH,null,"word-"+w.hanzi)}){Text("🔊")}
       }
      }
     }}
@@ -83,6 +108,13 @@ fun GradedReaderScreen(){
       story.choices.forEachIndexed{i,c->RadioButtonRow(c,quizAnswer==i){quizAnswer=i;quizChecked=false}}
       Button(enabled=quizAnswer>=0,onClick={quizChecked=true},modifier=Modifier.fillMaxWidth()){Text("Kiểm tra")}
       if(quizChecked){val right=quizAnswer==story.correct;Text(if(right)"Chính xác! 🎉" else "Chưa đúng. Đáp án: "+story.choices[story.correct],color=if(right)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error);if(right&&story.title !in completed){completed=completed+story.title;prefs.edit().putStringSet("completed",completed).apply()};Text("Truyện đã hoàn thành: "+completed.size,style=MaterialTheme.typography.labelMedium)}
+      HorizontalDivider();Text("Trò chơi ôn từ · 5 câu",style=MaterialTheme.typography.titleMedium)
+      if(!reviewMode&&reviewQuestion!=6){Button(onClick={reviewScore=0;makeReviewQuestion(1)},modifier=Modifier.fillMaxWidth()){Text("Bắt đầu game 5 câu")}}
+      if(!reviewMode&&reviewQuestion==6){Text("Kết quả: $reviewScore/5 · ${reviewScore*20}%",style=MaterialTheme.typography.titleMedium);Button(onClick={reviewScore=0;makeReviewQuestion(1)},modifier=Modifier.fillMaxWidth()){Text("Chơi lại")}}
+      if(reviewMode){Text("Câu $reviewQuestion/5 · Đúng $reviewScore",style=MaterialTheme.typography.labelLarge);Text(reviewHanzi,style=MaterialTheme.typography.headlineMedium);story.words.firstOrNull{it.hanzi==reviewHanzi}?.pinyin?.let{if(showPinyin)Text(it)};Text("Chọn nghĩa tiếng Việt")
+       reviewChoices.forEachIndexed{i,option->OutlinedButton(enabled=!reviewAnswered,onClick={if(!reviewAnswered){reviewSelected=i;reviewAnswered=true;if(option==reviewMeaning)reviewScore++}},modifier=Modifier.fillMaxWidth()){Text(option)}}
+       if(reviewAnswered){Text(if(reviewChoices.getOrNull(reviewSelected)==reviewMeaning)"Đúng! 🎉" else "Đáp án: $reviewMeaning",color=if(reviewChoices.getOrNull(reviewSelected)==reviewMeaning)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error);Button(onClick={if(reviewQuestion>=5){reviewMode=false;reviewQuestion=6;reviewSelected=-1;reviewAnswered=false}else makeReviewQuestion(reviewQuestion+1},modifier=Modifier.fillMaxWidth()){Text(if(reviewQuestion>=5)"Xem kết quả" else "Câu tiếp theo")}}
+      }
      }
     }}
    }
