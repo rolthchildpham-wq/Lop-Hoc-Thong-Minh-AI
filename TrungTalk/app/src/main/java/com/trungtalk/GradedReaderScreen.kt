@@ -124,7 +124,16 @@ fun GradedReaderScreen(){
      Text("Truyện",style=MaterialTheme.typography.titleLarge)
      if(!known){Text("🔒 Đánh dấu đã biết toàn bộ chữ phía trên để mở truyện.",color=MaterialTheme.colorScheme.secondary);Button(onClick={mastered=mastered+chars;prefs.edit().putStringSet("mastered",mastered).apply()},modifier=Modifier.fillMaxWidth()){Text("Đánh dấu đã học toàn bộ chữ truyện")}}
      else{
-      Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){FilterChip(selected=showPinyin,onClick={showPinyin=!showPinyin},label={Text("Pinyin")});FilterChip(selected=showMeaning,onClick={showMeaning=!showMeaning},label={Text("Tiếng Việt")});Button(onClick={story.lines.forEachIndexed{index,line->tts?.speak(line,if(index==0)TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD,null,"reader-audio-$level-$selected-$index")}){Text("▶ Audiobook")};OutlinedButton(onClick={tts?.stop()}){Text("⏹ Dừng")}}
+      Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){
+       FilterChip(selected=showPinyin,onClick={showPinyin=!showPinyin},label={Text("Pinyin")})
+       FilterChip(selected=showMeaning,onClick={showMeaning=!showMeaning},label={Text("Tiếng Việt")})
+       Button(onClick={
+        story.lines.forEachIndexed { index,line ->
+         tts?.speak(line,if(index==0)TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD,null,"reader-audio-$level-$selected-$index")
+        }
+       }){Text("▶ Audiobook")}
+       OutlinedButton(onClick={tts?.stop()}){Text("⏹ Dừng")}
+      }
       story.lines.forEach{line->Text(line,style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Medium);if(showPinyin)Text(story.words.filter{line.contains(it.hanzi)}.joinToString(" "){it.pinyin});if(showMeaning)Text(story.words.filter{line.contains(it.hanzi)}.joinToString(" · "){it.meaning},style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.secondary)}
       if(showMeaning)Text(story.translation,style=MaterialTheme.typography.bodyLarge)
       Divider();Text("Kiểm tra đọc hiểu",style=MaterialTheme.typography.titleMedium);Text(story.question)
