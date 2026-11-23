@@ -128,16 +128,47 @@ object HskVocabularyRepository {
         val root = JSONObject(raw)
         val items = root.optJSONArray("items") ?: return emptyList()
         val out = ArrayList<DictWord>(items.length())
+
+        fun hasMeaningfulDefinitions(definitions: org.json.JSONArray?): Boolean {
+            if (definitions == null) return false
+            for (index in 0 until definitions.length()) {
+                val meanings = definitions.optJSONObject(index)?.optJSONArray("meanings") ?: continue
+                for (meaningIndex in 0 until meanings.length()) {
+                    if (meanings.optString(meaningIndex).isNotBlank()) return true
+                }
+            }
+            return false
+        }
+
         for (i in 0 until items.length()) {
             val item = items.optJSONObject(i) ?: continue
             val word = item.optString("word").trim()
             if (word.isBlank()) continue
-            val defs = item.optJSONArray("official_definitions") ?: item.optJSONArray("full_definitions")
+            val official = item.optJSONArray("official_definitions")
+            val full = item.optJSONArray("full_definitions")
+            // HSK 3.0 source often has empty official meanings but populated full definitions.
+            val defs = when {
+                hasMeaningfulDefinitions(official) -> official
+                hasMeaningfulDefinitions(full) -> full
+                else -> official ?: full
+            }
+
             var pinyin = ""
+            for (source in listOf(official, full)) {
+                if (source == null) continue
+                for (j in 0 until source.length()) {
+                    val candidate = source.optJSONObject(j)?.optString("pinyin").orEmpty()
+                    if (candidate.isNotBlank()) {
+                        pinyin = candidate
+                        break
+                    }
+                }
+                if (pinyin.isNotBlank()) break
+            }
+
             var meaning = ""
             if (defs != null) for (j in 0 until defs.length()) {
                 val def = defs.optJSONObject(j) ?: continue
-                if (pinyin.isBlank()) pinyin = def.optString("pinyin")
                 val arr = def.optJSONArray("meanings")
                 if (arr != null && arr.length() > 0) {
                     meaning = (0 until arr.length()).map { arr.optString(it) }
@@ -153,7 +184,6 @@ object HskVocabularyRepository {
         }
         return out
     }
-
     private fun toCache(words: List<DictWord>): String {
         val arr = org.json.JSONArray()
         words.forEach { w ->
