@@ -3,6 +3,8 @@ package com.trungtalk
 import android.content.Context
 import android.speech.tts.TextToSpeech
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
@@ -23,6 +25,9 @@ private val readerStories=listOf(
  ReaderStory(1,"Ngày đầu ở công ty",listOf(ReaderWord("我","wǒ","tôi"),ReaderWord("你","nǐ","bạn"),ReaderWord("好","hǎo","tốt; khỏe"),ReaderWord("是","shì","là"),ReaderWord("人","rén","người"),ReaderWord("越","yuè","Việt; vượt"),ReaderWord("南","nán","nam; phía nam"),ReaderWord("工","gōng","công"),ReaderWord("作","zuò","việc"),ReaderWord("今","jīn","nay"),ReaderWord("天","tiān","ngày"),ReaderWord("忙","máng","bận"),ReaderWord("很","hěn","rất"),ReaderWord("谢","xiè","cảm ơn")),listOf("你好！","我是越南人。","今天我工作。","我很忙。","谢谢你！"),"Xin chào! Tôi là người Việt Nam. Hôm nay tôi làm việc. Tôi rất bận. Cảm ơn bạn!","今天我怎么样？",listOf("我很忙。","我很好。","我是老师。"),0),
  ReaderStory(2,"Chuẩn bị đơn hàng",listOf(ReaderWord("请","qǐng","xin; mời"),ReaderWord("看","kàn","xem"),ReaderWord("这","zhè","này"),ReaderWord("个","gè","cái"),ReaderWord("产品","chǎn pǐn","sản phẩm"),ReaderWord("有","yǒu","có"),ReaderWord("问","wèn","hỏi"),ReaderWord("题","tí","vấn đề"),ReaderWord("我们","wǒ men","chúng tôi"),ReaderWord("检查","jiǎn chá","kiểm tra"),ReaderWord("再","zài","lại"),ReaderWord("确认","què rèn","xác nhận"),ReaderWord("一下","yí xià","một chút"),ReaderWord("数量","shù liàng","số lượng")),listOf("请看这个产品。","这个产品有问题。","我们检查一下。","再确认数量。"),"Xin xem sản phẩm này. Sản phẩm này có vấn đề. Chúng ta kiểm tra một chút rồi xác nhận lại số lượng.","产品有问题时，我们做什么？",listOf("马上离开。","我们检查一下。","不工作。"),1),
  ReaderStory(3,"Cuộc họp tiến độ",listOf(ReaderWord("明","míng","ngày mai"),ReaderWord("进","jìn","tiến"),ReaderWord("度","dù","độ"),ReaderWord("报","bào","báo"),ReaderWord("告","gào","cáo"),ReaderWord("已","yǐ","đã"),ReaderWord("经","jīng","qua"),ReaderWord("完","wán","hoàn"),ReaderWord("成","chéng","thành"),ReaderWord("需","xū","cần"),ReaderWord("要","yào","cần"),ReaderWord("时","shí","thời"),ReaderWord("间","jiān","gian"),ReaderWord("开会","kāi huì","họp"),ReaderWord("我们","wǒ men","chúng tôi"),ReaderWord("请","qǐng","xin"),ReaderWord("确认","què rèn","xác nhận"),ReaderWord("明天","míng tiān","ngày mai"),ReaderWord("进度","jìn dù","tiến độ"),ReaderWord("报告","bào gào","báo cáo"),ReaderWord("已经","yǐ jīng","đã"),ReaderWord("完成","wán chéng","hoàn thành"),ReaderWord("需要","xū yào","cần"),ReaderWord("时间","shí jiān","thời gian")),listOf("明天开会。","进度报告已经完成。","我们需要时间。","请确认。"),"Ngày mai họp. Báo cáo tiến độ đã hoàn thành. Chúng tôi cần thời gian. Xin xác nhận.","进度报告怎么样？",listOf("已经完成。","不知道。","今天休息。"),0)
+)
+private val readerHighFrequencyCharacters=listOf(
+ ReaderWord("的","de","trợ từ sở hữu/định ngữ"),ReaderWord("一","yī","một"),ReaderWord("是","shì","là"),ReaderWord("不","bù","không"),ReaderWord("了","le","trợ từ hoàn thành/biến đổi"),ReaderWord("在","zài","ở; đang"),ReaderWord("人","rén","người"),ReaderWord("我","wǒ","tôi"),ReaderWord("有","yǒu","có"),ReaderWord("他","tā","anh ấy"),ReaderWord("这","zhè","này"),ReaderWord("中","zhōng","trong; giữa"),ReaderWord("来","lái","đến"),ReaderWord("上","shàng","trên; lên"),ReaderWord("大","dà","lớn"),ReaderWord("为","wèi","vì; cho"),ReaderWord("个","gè","lượng từ"),ReaderWord("国","guó","quốc gia"),ReaderWord("到","dào","đến"),ReaderWord("说","shuō","nói")
 )
 private fun readerChineseChars(text:String)=text.filter{it.code in 0x4E00..0x9FFF}.map{it.toString()}
 private fun uniqueReaderChars(stories:List<ReaderStory>)=stories.flatMap{it.words.flatMap{readerChineseChars(it.hanzi)}}.distinct()
@@ -51,6 +56,8 @@ fun GradedReaderScreen(){
  var reviewSelected by rememberSaveable{mutableIntStateOf(-1)}
  var reviewAnswered by rememberSaveable{mutableStateOf(false)}
  var tts by remember{mutableStateOf<TextToSpeech?>(null)}
+ var selectedHighFrequency by rememberSaveable{mutableStateOf("的")}
+ var highFrequencySrsMessage by rememberSaveable{mutableStateOf("")}
  DisposableEffect(Unit){
   val holder=arrayOfNulls<TextToSpeech>(1)
   val engine=TextToSpeech(context){status->if(status==TextToSpeech.SUCCESS) holder[0]?.language=Locale.SIMPLIFIED_CHINESE}
@@ -85,6 +92,18 @@ fun GradedReaderScreen(){
   Text("Chữ cần học · "+chars.count{it in mastered}+"/"+chars.size+" đã biết",style=MaterialTheme.typography.titleSmall)
   OutlinedButton(onClick={scope.launch{story.words.filter{readerChineseChars(it.hanzi).all{ch->ch in mastered}}.forEach{w->if(srsDao.get(w.hanzi)==null)srsDao.save(SrsCard(cardId=w.hanzi,box=1,dueAt=System.currentTimeMillis(),repetitions=0))}}},modifier=Modifier.fillMaxWidth()){Text("🔁 Thêm từ đã mastery vào ô SRS")}
   LazyColumn(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(8.dp)){
+   item{
+    Card{Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
+     Text("Chữ tần suất cao · ${mastered.count{ch->readerHighFrequencyCharacters.any{it.hanzi==ch}}}/20",style=MaterialTheme.typography.titleMedium)
+     Text("Ưu tiên nhận diện chữ phổ biến trong giao tiếp và công việc.",style=MaterialTheme.typography.bodySmall)
+     Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(4.dp)){
+      readerHighFrequencyCharacters.forEach{char->FilterChip(selected=char.hanzi in mastered,onClick={selectedHighFrequency=char.hanzi;mastered=if(char.hanzi in mastered)mastered-char.hanzi else mastered+char.hanzi;prefs.edit().putStringSet("mastered",mastered).apply();tts?.speak(char.hanzi,TextToSpeech.QUEUE_FLUSH,null,"high-frequency-${char.hanzi}")},label={Text(char.hanzi)})}
+     }
+     readerHighFrequencyCharacters.firstOrNull{it.hanzi==selectedHighFrequency}?.let{Text("${it.pinyin} · ${it.meaning}",style=MaterialTheme.typography.bodyMedium)}
+     Button(enabled=readerHighFrequencyCharacters.any{it.hanzi in mastered},onClick={scope.launch{var added=0;readerHighFrequencyCharacters.filter{it.hanzi in mastered}.forEach{if(srsDao.get(it.hanzi)==null){srsDao.save(SrsCard(cardId=it.hanzi,box=1,dueAt=System.currentTimeMillis(),repetitions=0));added++}};highFrequencySrsMessage="Đã thêm $added chữ mới vào SRS."}},modifier=Modifier.fillMaxWidth()){Text("🔁 Thêm chữ đã học vào SRS")}
+     if(highFrequencySrsMessage.isNotBlank())Text(highFrequencySrsMessage,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.secondary)
+    }}
+   }
    item{
     Card{Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
      Text("Chạm từng chữ để nghe và đánh dấu mastery; nút loa phát cả từ",fontWeight=FontWeight.SemiBold)
