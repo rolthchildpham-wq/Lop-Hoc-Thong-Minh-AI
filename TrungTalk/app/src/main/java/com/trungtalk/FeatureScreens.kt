@@ -19,6 +19,7 @@ import android.content.Context
 import com.trungtalk.data.db.*
 import com.trungtalk.ai.BackendClient
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 
 /** Shared speech engine: queues text while initialization runs and checks Chinese voice availability. */
 private object TrungTalkSpeech {
@@ -588,6 +589,10 @@ fun VocabularyScreen() {
  var addedToSrs by remember { mutableStateOf(setOf<String>()) }
  var srsBusy by remember { mutableStateOf(setOf<String>()) }
  var srsMessage by rememberSaveable { mutableStateOf("") }
+ var bulkTranslating by rememberSaveable { mutableStateOf(false) }
+ var bulkProgress by rememberSaveable { mutableStateOf("") }
+ var bulkTranslationError by rememberSaveable { mutableStateOf("") }
+ var bulkTranslationJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null)
  val dictionary=remember(remoteWords) { (starterDictionary+remoteWords).distinctBy { it.hanzi+"|"+it.pinyin } }
  // Cache filtering until a search/filter/favorite input changes; avoid repeated 11k scans on unrelated recompositions.
   val filtered=remember(dictionary,level,favoritesOnly,favorites,search) { dictionary.filter { (level==0||it.level==level) && (!favoritesOnly||it.hanzi in favorites) && (search.isBlank()||it.hanziContains(search)||it.traditional.contains(search.trim(),true)||it.pinyin.contains(search.trim(),true)||it.meaning.contains(search.trim(),true)) } }
@@ -604,6 +609,57 @@ fun VocabularyScreen() {
    Text("Hiển thị ${filtered.size} từ · ${favorites.size} yêu thích",style=MaterialTheme.typography.labelMedium,modifier=Modifier.weight(1f))
    FilterChip(selected=favoritesOnly,onClick={favoritesOnly=!favoritesOnly},label={Text(if(favoritesOnly)"★ Đang lọc" else "★ Yêu thích")})
   }
+  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+   Button(enabled=!bulkTranslating&&!hskLoading&&remoteWords.isNotEmpty(),onClick={
+    bulkTranslationError=""
+    val pending=remoteWords.distinctBy{it.hanzi}.filter{viPrefs.getString(it.hanzi,null).isNullOrBlank()}
+    if(pending.isEmpty()) bulkProgress="Tất cả từ HSK đã có nghĩa tiếng Việt trong bộ nhớ."
+    else {
+     bulkTranslating=true;bulkProgress="Đang chuẩn bị ${pending.size} từ…"
+     bulkTranslationJob=scope.launch {
+      var translated=0
+      val batches=pending.chunked(20)
+      try {
+       for((batchIndex,batch) in batches.withIndex()) {
+        val input=org.json.JSONArray()
+        batch.forEach{word->input.put(org.json.JSONObject().put("hanzi",word.hanzi).put("pinyin",word.pinyin).put("english",word.meaning.removePrefix("Nghĩa tham khảo (EN): ").trim()))}
+        val raw=BackendClient(context).translateBatch(input)
+        val clean=raw.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
+        val array=org.json.JSONArray(clean)
+        val batchGlosses=mutableMapOf<String,String>()
+        for(i in 0 until array.length()) {
+         val item=array.optJSONObject(i)?:continue
+         val hanzi=item.optString("hanzi").trim()
+         val meaning=item.optString("meaning_vi").trim()
+         if(hanzi.isNotBlank()&&meaning.isNotBlank()&&batch.any{it.hanzi==hanzi}) batchGlosses[hanzi]=meaning
+        }
+        val missing=batch.filter{it.hanzi !in batchGlosses}
+        if(missing.isNotEmpty()) throw IllegalStateException("AI thiếu nghĩa: ${missing.take(5).joinToString{it.hanzi}}")
+        val editor=viPrefs.edit()
+        batchGlosses.forEach{(hanzi,meaning)->editor.putString(hanzi,meaning)}
+        editor.apply()
+        viGlosses=viGlosses+batchGlosses
+        translated+=batchGlosses.size
+        bulkProgress="Đã dịch $translated/${pending.size} từ HSK · lô ${batchIndex+1}/${batches.size}"
+       }
+       bulkProgress="Hoàn tất: $translated/${pending.size} từ HSK đã có nghĩa tiếng Việt."
+      } catch(e:CancellationException) {
+       bulkProgress="Đã tạm dừng. Nghĩa đã lưu được giữ lại; lần sau tiếp tục từ các từ chưa dịch."
+       throw e
+      } catch(e:Exception) {
+       bulkTranslationError=e.message?:"Dịch hàng loạt thất bại."
+      } finally {
+       bulkTranslating=false
+       bulkTranslationJob=null
+      }
+     }
+    }
+   },modifier=Modifier.weight(1f)){Text(if(bulkTranslating)"Đang dịch…" else "🌐 Dịch HSK còn thiếu")}
+   OutlinedButton(enabled=bulkTranslating,onClick={bulkTranslationJob?.cancel()},modifier=Modifier.weight(1f)){Text("⏸ Tạm dừng")}
+  }
+  if(bulkProgress.isNotBlank()) Text(bulkProgress,style=MaterialTheme.typography.bodySmall)
+  if(bulkTranslating) LinearProgressIndicator(Modifier.fillMaxWidth())
+  if(bulkTranslationError.isNotBlank()) Text(bulkTranslationError,color=MaterialTheme.colorScheme.error,style=MaterialTheme.typography.bodySmall)
   LazyColumn(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(7.dp)) {
    items(filtered,key={it.hanzi}) { word ->
     Card(Modifier.fillMaxWidth()) {
@@ -625,9 +681,10 @@ fun VocabularyScreen() {
        translating=translating+word.hanzi
        scope.launch {
         try {
-         val prompt="Dịch từ tiếng Trung sang tiếng Việt chính xác và ngắn gọn. Trả lời chỉ nghĩa tiếng Việt, không giải thích thêm. Từ: ${word.hanzi}; Pinyin: ${word.pinyin}; nghĩa tiếng Anh tham khảo: ${word.meaning}. Cho 1-3 nghĩa thường dùng, phân tách bằng dấu chấm phẩy."
-         val vi=BackendClient(context).chat(emptyList(),prompt).trim()
-         if(vi.isNotBlank()) { viGlosses=viGlosses+ (word.hanzi to vi); viPrefs.edit().putString(word.hanzi,vi).apply() }
+         val input=org.json.JSONArray().put(org.json.JSONObject().put("hanzi",word.hanzi).put("pinyin",word.pinyin).put("english",word.meaning.removePrefix("Nghĩa tham khảo (EN): ").trim()))
+         val raw=BackendClient(context).translateBatch(input).trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
+         val vi=org.json.JSONArray(raw).optJSONObject(0)?.optString("meaning_vi")?.trim().orEmpty()
+         if(vi.isNotBlank()) { viGlosses=viGlosses+(word.hanzi to vi); viPrefs.edit().putString(word.hanzi,vi).apply() } else srsMessage="AI chưa trả nghĩa cho ${word.hanzi}."
          else srsMessage="AI chưa trả nghĩa cho ${word.hanzi}."
         } catch(e:Exception) { srsMessage="Dịch ${word.hanzi} lỗi: ${e.message ?: "không kết nối"}" }
         finally { translating=translating - word.hanzi }
