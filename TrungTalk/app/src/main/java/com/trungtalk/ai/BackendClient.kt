@@ -55,6 +55,11 @@ class BackendClient(context: Context) {
     suspend fun evaluate(prompt: String): String =
         post("/evaluate", JSONObject().put("prompt", prompt))
 
+    suspend fun translateBatch(words: JSONArray): String {
+        require(words.length() in 1..20) { "Mỗi lô dịch phải có 1–20 từ." }
+        return post("/translate", JSONObject().put("words", words))
+    }
+
     private suspend fun post(path: String, payload: JSONObject): String = withContext(Dispatchers.IO) {
         require(baseUrl.isNotBlank()) {
             "Chưa cấu hình BACKEND_URL. Hãy triển khai Worker và đặt biến BACKEND_URL khi build."
