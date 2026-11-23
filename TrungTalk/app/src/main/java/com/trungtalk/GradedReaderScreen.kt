@@ -74,6 +74,7 @@ fun GradedReaderScreen(){
  val taughtChars=uniqueReaderChars(stories)
  val missingChars=chars.filter{it !in taughtChars}
  val known=chars.all{it in mastered}
+ val highFrequencyMastered=readerHighFrequencyCharacters.count{it.hanzi in mastered}
  LaunchedEffect(mastered){prefs.edit().putStringSet("mastered",mastered).apply()}
  LaunchedEffect(level,selected){tts?.stop();reviewMode=false;reviewQuestion=0;reviewScore=0;reviewHanzi="";reviewMeaning="";reviewChoices=emptyList();reviewSelected=-1;reviewAnswered=false}
  fun makeReviewQuestion(number:Int){
@@ -94,7 +95,7 @@ fun GradedReaderScreen(){
   LazyColumn(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(8.dp)){
    item{
     Card{Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
-     Text("Chữ tần suất cao · ${mastered.count{ch->readerHighFrequencyCharacters.any{it.hanzi==ch}}}/20",style=MaterialTheme.typography.titleMedium)
+     Text("Chữ tần suất cao · $highFrequencyMastered/20",style=MaterialTheme.typography.titleMedium)
      Text("Ưu tiên nhận diện chữ phổ biến trong giao tiếp và công việc.",style=MaterialTheme.typography.bodySmall)
      Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(4.dp)){
       readerHighFrequencyCharacters.forEach{char->FilterChip(selected=char.hanzi in mastered,onClick={selectedHighFrequency=char.hanzi;mastered=if(char.hanzi in mastered)mastered-char.hanzi else mastered+char.hanzi;prefs.edit().putStringSet("mastered",mastered).apply();tts?.speak(char.hanzi,TextToSpeech.QUEUE_FLUSH,null,"high-frequency-${char.hanzi}")},label={Text(char.hanzi)})}
