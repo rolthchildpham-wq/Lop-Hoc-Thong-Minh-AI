@@ -20,12 +20,13 @@ import java.util.Locale
 private data class ReaderWord(val hanzi:String,val pinyin:String,val meaning:String)
 private data class ReaderStory(val level:Int,val title:String,val words:List<ReaderWord>,val lines:List<String>,val translation:String,val question:String,val choices:List<String>,val correct:Int)
 private val readerStories=listOf(
- ReaderStory(1,"Ngày đầu ở công ty",listOf(ReaderWord("我","wǒ","tôi"),ReaderWord("你","nǐ","bạn"),ReaderWord("好","hǎo","tốt; khỏe"),ReaderWord("是","shì","là"),ReaderWord("人","rén","người"),ReaderWord("工","gōng","công"),ReaderWord("作","zuò","việc"),ReaderWord("今","jīn","nay"),ReaderWord("天","tiān","ngày"),ReaderWord("忙","máng","bận"),ReaderWord("很","hěn","rất"),ReaderWord("谢","xiè","cảm ơn")),listOf("你好！","我是越南人。","今天我工作。","我很忙。","谢谢你！"),"Xin chào! Tôi là người Việt Nam. Hôm nay tôi làm việc. Tôi rất bận. Cảm ơn bạn!","今天我怎么样？",listOf("我很忙。","我很好。","我是老师。"),0),
+ ReaderStory(1,"Ngày đầu ở công ty",listOf(ReaderWord("我","wǒ","tôi"),ReaderWord("你","nǐ","bạn"),ReaderWord("好","hǎo","tốt; khỏe"),ReaderWord("是","shì","là"),ReaderWord("人","rén","người"),ReaderWord("越","yuè","Việt; vượt"),ReaderWord("南","nán","nam; phía nam"),ReaderWord("工","gōng","công"),ReaderWord("作","zuò","việc"),ReaderWord("今","jīn","nay"),ReaderWord("天","tiān","ngày"),ReaderWord("忙","máng","bận"),ReaderWord("很","hěn","rất"),ReaderWord("谢","xiè","cảm ơn")),listOf("你好！","我是越南人。","今天我工作。","我很忙。","谢谢你！"),"Xin chào! Tôi là người Việt Nam. Hôm nay tôi làm việc. Tôi rất bận. Cảm ơn bạn!","今天我怎么样？",listOf("我很忙。","我很好。","我是老师。"),0),
  ReaderStory(2,"Chuẩn bị đơn hàng",listOf(ReaderWord("请","qǐng","xin; mời"),ReaderWord("看","kàn","xem"),ReaderWord("这","zhè","này"),ReaderWord("个","gè","cái"),ReaderWord("产品","chǎn pǐn","sản phẩm"),ReaderWord("有","yǒu","có"),ReaderWord("问","wèn","hỏi"),ReaderWord("题","tí","vấn đề"),ReaderWord("我们","wǒ men","chúng tôi"),ReaderWord("检查","jiǎn chá","kiểm tra"),ReaderWord("再","zài","lại"),ReaderWord("确认","què rèn","xác nhận"),ReaderWord("一下","yí xià","một chút"),ReaderWord("数量","shù liàng","số lượng")),listOf("请看这个产品。","这个产品有问题。","我们检查一下。","再确认数量。"),"Xin xem sản phẩm này. Sản phẩm này có vấn đề. Chúng ta kiểm tra một chút rồi xác nhận lại số lượng.","产品有问题时，我们做什么？",listOf("马上离开。","我们检查一下。","不工作。"),1),
  ReaderStory(3,"Cuộc họp tiến độ",listOf(ReaderWord("明","míng","ngày mai"),ReaderWord("进","jìn","tiến"),ReaderWord("度","dù","độ"),ReaderWord("报","bào","báo"),ReaderWord("告","gào","cáo"),ReaderWord("已","yǐ","đã"),ReaderWord("经","jīng","qua"),ReaderWord("完","wán","hoàn"),ReaderWord("成","chéng","thành"),ReaderWord("需","xū","cần"),ReaderWord("要","yào","cần"),ReaderWord("时","shí","thời"),ReaderWord("间","jiān","gian"),ReaderWord("开会","kāi huì","họp"),ReaderWord("我们","wǒ men","chúng tôi"),ReaderWord("请","qǐng","xin"),ReaderWord("确认","què rèn","xác nhận"),ReaderWord("明天","míng tiān","ngày mai"),ReaderWord("进度","jìn dù","tiến độ"),ReaderWord("报告","bào gào","báo cáo"),ReaderWord("已经","yǐ jīng","đã"),ReaderWord("完成","wán chéng","hoàn thành"),ReaderWord("需要","xū yào","cần"),ReaderWord("时间","shí jiān","thời gian")),listOf("明天开会。","进度报告已经完成。","我们需要时间。","请确认。"),"Ngày mai họp. Báo cáo tiến độ đã hoàn thành. Chúng tôi cần thời gian. Xin xác nhận.","进度报告怎么样？",listOf("已经完成。","不知道。","今天休息。"),0)
 )
 private fun readerChineseChars(text:String)=text.filter{it.code in 0x4E00..0x9FFF}.map{it.toString()}
 private fun uniqueReaderChars(stories:List<ReaderStory>)=stories.flatMap{it.words.flatMap{readerChineseChars(it.hanzi)}}.distinct()
+private fun uniqueStoryChars(stories:List<ReaderStory>)=stories.flatMap{readerChineseChars(it.lines.joinToString(""))}.distinct()
 
 @Composable
 fun GradedReaderScreen(){
@@ -56,16 +57,18 @@ fun GradedReaderScreen(){
   holder[0]=engine;tts=engine
   onDispose{engine.stop();engine.shutdown();tts=null}
  }
- val level1Chars=uniqueReaderChars(readerStories.filter{it.level==1})
- val level2Chars=uniqueReaderChars(readerStories.filter{it.level==2})
+ val level1Chars=uniqueStoryChars(readerStories.filter{it.level==1})
+ val level2Chars=uniqueStoryChars(readerStories.filter{it.level==2})
  val level2Unlocked=level1Chars.all{it in mastered}
  val level3Unlocked=(level1Chars+level2Chars).all{it in mastered}
  val stories=readerStories.filter{it.level==level}
  val story=stories.getOrNull(selected)?:stories.first()
- val chars=uniqueReaderChars(stories)
+ val chars=uniqueStoryChars(stories)
+ val taughtChars=uniqueReaderChars(stories)
+ val missingChars=chars.filter{it !in taughtChars}
  val known=chars.all{it in mastered}
  LaunchedEffect(mastered){prefs.edit().putStringSet("mastered",mastered).apply()}
- LaunchedEffect(level,selected){reviewMode=false;reviewQuestion=0;reviewScore=0;reviewHanzi="";reviewMeaning="";reviewChoices=emptyList();reviewSelected=-1;reviewAnswered=false}
+ LaunchedEffect(level,selected){tts?.stop();reviewMode=false;reviewQuestion=0;reviewScore=0;reviewHanzi="";reviewMeaning="";reviewChoices=emptyList();reviewSelected=-1;reviewAnswered=false}
  fun makeReviewQuestion(number:Int){
   val pool=story.words.filter{it.meaning.isNotBlank()}.distinctBy{it.hanzi}
   if(pool.size<2){reviewMode=false;reviewQuestion=0;return}
@@ -85,7 +88,7 @@ fun GradedReaderScreen(){
    item{
     Card{Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
      Text("Chạm từng chữ để nghe và đánh dấu mastery; nút loa phát cả từ",fontWeight=FontWeight.SemiBold)
-     story.words.forEach{w->
+     (story.words + missingChars.map { ch -> ReaderWord(ch,"","Chữ bổ sung trong truyện") }).forEach{w->
       Row(Modifier.fillMaxWidth().padding(vertical=5.dp),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically){
        Row(horizontalArrangement=Arrangement.spacedBy(2.dp)){
         readerChineseChars(w.hanzi).forEach{ch->FilterChip(selected=ch in mastered,onClick={mastered=if(ch in mastered)mastered-ch else mastered+ch;prefs.edit().putStringSet("mastered",mastered).apply();tts?.speak(ch,TextToSpeech.QUEUE_FLUSH,null,"char-"+ch)},label={Text(ch)})}
@@ -101,7 +104,7 @@ fun GradedReaderScreen(){
      Text("Truyện",style=MaterialTheme.typography.titleLarge)
      if(!known){Text("🔒 Đánh dấu đã biết toàn bộ chữ phía trên để mở truyện.",color=MaterialTheme.colorScheme.secondary);Button(onClick={mastered=mastered+chars;prefs.edit().putStringSet("mastered",mastered).apply()},modifier=Modifier.fillMaxWidth()){Text("Đánh dấu đã học toàn bộ chữ truyện")}}
      else{
-      Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){FilterChip(selected=showPinyin,onClick={showPinyin=!showPinyin},label={Text("Pinyin")});FilterChip(selected=showMeaning,onClick={showMeaning=!showMeaning},label={Text("Tiếng Việt")});Button(onClick={tts?.speak(story.lines.joinToString(" "),TextToSpeech.QUEUE_FLUSH,null,"story")}){Text("▶ Nghe truyện")}}
+      Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){FilterChip(selected=showPinyin,onClick={showPinyin=!showPinyin},label={Text("Pinyin")});FilterChip(selected=showMeaning,onClick={showMeaning=!showMeaning},label={Text("Tiếng Việt")});Button(onClick={story.lines.forEachIndexed{index,line->tts?.speak(line,if(index==0)TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD,null,"reader-audio-$level-$selected-$index")}){Text("▶ Audiobook")};OutlinedButton(onClick={tts?.stop()}){Text("⏹ Dừng")}}
       story.lines.forEach{line->Text(line,style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Medium);if(showPinyin)Text(story.words.filter{line.contains(it.hanzi)}.joinToString(" "){it.pinyin});if(showMeaning)Text(story.words.filter{line.contains(it.hanzi)}.joinToString(" · "){it.meaning},style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.secondary)}
       if(showMeaning)Text(story.translation,style=MaterialTheme.typography.bodyLarge)
       Divider();Text("Kiểm tra đọc hiểu",style=MaterialTheme.typography.titleMedium);Text(story.question)
