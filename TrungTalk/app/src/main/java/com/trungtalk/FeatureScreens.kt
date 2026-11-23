@@ -592,7 +592,7 @@ fun VocabularyScreen() {
  var bulkTranslating by rememberSaveable { mutableStateOf(false) }
  var bulkProgress by rememberSaveable { mutableStateOf("") }
  var bulkTranslationError by rememberSaveable { mutableStateOf("") }
- var bulkTranslationJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null)
+ var bulkTranslationJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
  val dictionary=remember(remoteWords) { (starterDictionary+remoteWords).distinctBy { it.hanzi+"|"+it.pinyin } }
  // Cache filtering until a search/filter/favorite input changes; avoid repeated 11k scans on unrelated recompositions.
   val filtered=remember(dictionary,level,favoritesOnly,favorites,search) { dictionary.filter { (level==0||it.level==level) && (!favoritesOnly||it.hanzi in favorites) && (search.isBlank()||it.hanziContains(search)||it.traditional.contains(search.trim(),true)||it.pinyin.contains(search.trim(),true)||it.meaning.contains(search.trim(),true)) } }
@@ -685,7 +685,6 @@ fun VocabularyScreen() {
          val raw=BackendClient(context).translateBatch(input).trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
          val vi=org.json.JSONArray(raw).optJSONObject(0)?.optString("meaning_vi")?.trim().orEmpty()
          if(vi.isNotBlank()) { viGlosses=viGlosses+(word.hanzi to vi); viPrefs.edit().putString(word.hanzi,vi).apply() } else srsMessage="AI chưa trả nghĩa cho ${word.hanzi}."
-         else srsMessage="AI chưa trả nghĩa cho ${word.hanzi}."
         } catch(e:Exception) { srsMessage="Dịch ${word.hanzi} lỗi: ${e.message ?: "không kết nối"}" }
         finally { translating=translating - word.hanzi }
        }
