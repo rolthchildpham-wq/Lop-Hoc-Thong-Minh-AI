@@ -36,7 +36,13 @@ private suspend fun translateBatchWithRetry(client: BackendClient, words: org.js
   catch (e: CancellationException) { throw e }
   catch (e: Exception) {
    last = e
-   if (attempt < 2) delay(1200L * (attempt + 1))
+   if (attempt < 2) {
+    // Honor the Worker retry_after value instead of repeatedly retrying a rate-limited batch.
+    val retrySeconds = Regex("Thử lại sau (\\d+) giây").find(e.message.orEmpty())
+     ?.groupValues?.getOrNull(1)?.toLongOrNull()
+    val waitMs = retrySeconds?.times(1000L) ?: 1200L * (attempt + 1)
+    delay(waitMs.coerceIn(1000L, 120000L))
+   }
   }
  }
  throw last ?: IllegalStateException("Dịch từ vựng thất bại.")
