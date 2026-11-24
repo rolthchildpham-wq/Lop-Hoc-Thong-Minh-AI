@@ -31,6 +31,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Test Worker endpoints and structured responses
+        run: npm --prefix TrungTalk/worker test
       - name: Store Gemini key in Cloudflare Worker secret
         run: printf '%s' "$GEMINI_API_KEY" | npx --yes wrangler@4 secret put GEMINI_API_KEY --config TrungTalk/worker/wrangler.toml
       - name: Deploy Cloudflare Worker and capture URL

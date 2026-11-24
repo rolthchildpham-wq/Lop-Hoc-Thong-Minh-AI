@@ -24,14 +24,14 @@ function buildPrompt(path,payload) {
  if(path==="/flashcard") { const count=Math.max(5,Math.min(20,Number(payload.count)||10)); const topic=String(payload.topic||"giao tiếp cơ bản").slice(0,120); const level=String(payload.level||"HSK 1").slice(0,40); return teacher+" Tạo chính xác "+count+" flashcard tiếng Trung cho chủ đề "+topic+" và cấp "+level+". Chỉ trả JSON array, không markdown. Mỗi object có keys hanzi,pinyin,meaning_vi,example,example_pinyin,example_vi,category,level,image_search_query,audio_text. image_search_query là cụm tìm ảnh thật cụ thể bằng tiếng Anh (2-5 từ), không dùng emoji; audio_text là câu chữ tiếng Trung để phát TTS. Từ/câu đúng trình độ, không trùng, ưu tiên từ thông dụng."; }
  return "";
 }
-async function generateWithModel(model,prompt,wantsJson,temperature,env) {
+async function generateWithModel(model,prompt,wantsJson,temperature,maxOutputTokens,env) {
  const controller=new AbortController();
  const timeout=setTimeout(()=>controller.abort(),25000);
  try {
   const upstream=await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent?key="+encodeURIComponent(env.GEMINI_API_KEY),{
    method:"POST",headers:{"Content-Type":"application/json"},
    signal:controller.signal,
-   body:JSON.stringify({contents:[{role:"user",parts:[{text:prompt}]}],generationConfig:{temperature,maxOutputTokens:1800,...(wantsJson?{responseMimeType:"application/json"}:{})}})
+   body:JSON.stringify({contents:[{role:"user",parts:[{text:prompt}]}],generationConfig:{temperature,maxOutputTokens,...(wantsJson?{responseMimeType:"application/json"}:{})}})
   });
   const data=await upstream.json().catch(()=>({}));
   if(!upstream.ok) return {ok:false,status:upstream.status,error:data.error?.message||"Gemini request failed"};
@@ -42,6 +42,44 @@ async function generateWithModel(model,prompt,wantsJson,temperature,env) {
   return {ok:false,status: error?.name==="AbortError"?504:502,error:error?.name==="AbortError"?"Gemini request timed out after 25 seconds":String(error?.message||error)};
  } finally { clearTimeout(timeout); }
 }
+
+function structuredResponseIsValid(route,text,payload) {
+ let value;
+ try { value=JSON.parse(text); } catch { return false; }
+ if(route==="/grammar") {
+  return !!value && typeof value==="object" && !Array.isArray(value) &&
+   typeof value.explanation==="string" && Array.isArray(value.examples);
+ }
+ if(route==="/evaluate") {
+  const score=Number(value?.score);
+  return !!value && typeof value==="object" && !Array.isArray(value) &&
+   Number.isFinite(score) && score>=0 && score<=100 &&
+   typeof value.corrected==="string" && typeof value.explanation_vi==="string";
+ }
+ if(route==="/flashcard") {
+  const count=Math.max(5,Math.min(20,Number(payload.count)||10));
+  return Array.isArray(value) && value.length===count && value.every(card=>
+   card && typeof card.hanzi==="string" && card.hanzi.trim() &&
+   typeof card.pinyin==="string" && card.pinyin.trim() &&
+   typeof card.meaning_vi==="string" && card.meaning_vi.trim());
+ }
+ if(route==="/translate") {
+  const expected=(Array.isArray(payload.words)?payload.words.slice(0,20):[])
+   .map(word=>String(word?.hanzi||"").trim()).filter(Boolean);
+  if(!Array.isArray(value)||value.length!==expected.length) return false;
+  const expectedSet=new Set(expected);
+  const returned=new Set();
+  for(const item of value) {
+   const hanzi=String(item?.hanzi||"").trim();
+   const meaning=String(item?.meaning_vi||"").trim();
+   if(!expectedSet.has(hanzi)||returned.has(hanzi)||!meaning) return false;
+   returned.add(hanzi);
+  }
+  return returned.size===expectedSet.size;
+ }
+ return false;
+}
+
 export default {
  async fetch(request,env) {
   const url=new URL(request.url);
@@ -66,10 +104,15 @@ export default {
   }
   const wantsJson=route!=="/chat";
   const temperature=route==="/chat"?0.65:0.25;
+  const maxOutputTokens=route==="/translate"||route==="/flashcard"?4096:route==="/grammar"?2600:1800;
   let last={status:502,error:"no_model_available"};
   for(const model of MODELS) {
-   const result=await generateWithModel(model,prompt,wantsJson,temperature,env);
-   if(result.ok) return json({text:result.text,model});
+   const result=await generateWithModel(model,prompt,wantsJson,temperature,maxOutputTokens,env);
+   if(result.ok) {
+    if(!wantsJson||structuredResponseIsValid(route,result.text,payload||{})) return json({text:result.text,model});
+    last={status:502,error:"invalid_structured_response"};
+    continue;
+   }
    last=result;
    // Fallback only for availability/temporary errors. Do not hide invalid requests or quota failures.
    if(![404,429,500,502,503].includes(result.status)) break;
