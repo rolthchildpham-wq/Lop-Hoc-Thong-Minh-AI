@@ -1,5 +1,10 @@
 package com.trungtalk
 
+import android.content.Intent
+import android.speech.RecognizerIntent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -153,6 +158,11 @@ fun RoleplayScreen() {
  var messages by remember { mutableStateOf(loadSaved(selected)) }
  var error by rememberSaveable { mutableStateOf("") }
  var busy by remember { mutableStateOf(false) }
+ val speechLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+  val spoken = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull().orEmpty()
+  if (spoken.isNotBlank()) answer = listOf(answer.trim(), spoken).filter { it.isNotBlank() }.joinToString(" ")
+  else error = "Chưa nhận được giọng nói. Bạn có thể thử lại hoặc nhập câu bằng bàn phím."
+ }
  LaunchedEffect(selected,messages) {
   val arr=org.json.JSONArray()
   // Keep local history bounded to prevent SharedPreferences growth over long sessions.
@@ -173,11 +183,30 @@ fun RoleplayScreen() {
    }
   }
   OutlinedTextField(answer,{answer=it},label={Text("Trả lời bằng tiếng Trung")},modifier=Modifier.fillMaxWidth(),minLines=2)
+  OutlinedButton(enabled=!busy,onClick={
+   error=""
+   val intent=Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+    putExtra(RecognizerIntent.EXTRA_LANGUAGE,"zh-CN")
+    putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE,"zh-CN")
+    putExtra(RecognizerIntent.EXTRA_PROMPT,"请用中文回答")
+    putExtra(RecognizerIntent.EXTRA_MAX_RESULTS,3)
+   }
+   try { speechLauncher.launch(intent) }
+   catch(_:Exception) { error="Thiết bị chưa có dịch vụ nhận dạng giọng nói. Bạn vẫn có thể nhập câu bằng bàn phím." }
+  },modifier=Modifier.fillMaxWidth()){Text("🎙️ Nói câu trả lời bằng tiếng Trung")}
   Button(enabled=answer.isNotBlank()&&!busy,onClick={
    val userText=answer.trim()
    val prior=messages
    val history=prior+("user" to userText)
-   val prompt="Bạn đang roleplay tình huống: ${roles[selected].second}. Tiếp tục hội thoại tự nhiên bằng tiếng Trung phù hợp HSK 2-4. Hãy phản hồi như nhân vật, không kết thúc tình huống. Sau câu tiếng Trung, thêm phần ngắn tiếng Việt: giải nghĩa phản hồi và góp ý câu học viên vừa nói (nêu sửa câu nếu cần)."
+   val prompt="""Bạn đang roleplay tình huống: ${roles[selected].second}
+Tiếp tục hội thoại tự nhiên bằng tiếng Trung phù hợp HSK 2-4, đúng vai và bám sát các lượt trước. Không kết thúc tình huống.
+Trả lời theo cấu trúc rõ ràng:
+【对话】Một đến ba câu tiếng Trung tự nhiên để tiếp tục cuộc hội thoại.
+【生词】Tối đa 3 từ/cụm từ quan trọng kèm Pinyin và nghĩa tiếng Việt.
+【纠错】Nhận xét câu học viên vừa nói bằng tiếng Việt; nếu sai, viết câu sửa bằng chữ Hán và Pinyin. Nếu câu đúng, chỉ ra một điểm diễn đạt tốt.
+【继续】Kết thúc bằng một câu hỏi hoặc yêu cầu cụ thể để học viên phải phản hồi tiếp bằng tiếng Trung.
+Không bịa lỗi phát âm vì đầu vào hiện tại chỉ là văn bản nhận dạng giọng nói."""
    busy=true;error="";answer=""
    scope.launch {
     try { val reply=BackendClient(ctx).chat(prior.takeLast(20),prompt+"\nCâu mới của học viên: "+userText); messages=history+("assistant" to reply) }
