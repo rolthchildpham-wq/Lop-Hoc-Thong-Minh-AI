@@ -667,6 +667,8 @@ fun VocabularyScreen() {
       val batches=pending.chunked(20)
       try {
        for((batchIndex,batch) in batches.withIndex()) {
+        // Worker allows 25 requests per device/minute; keep bulk translation below that limit.
+        if(batchIndex>0) delay(2500L)
         val input=org.json.JSONArray()
         batch.forEach{word->input.put(org.json.JSONObject().put("hanzi",word.hanzi).put("pinyin",word.pinyin).put("english",word.meaning.removePrefix("Nghĩa tham khảo (EN): ").trim()))}
         val raw=translateBatchWithRetry(BackendClient(context),input)
