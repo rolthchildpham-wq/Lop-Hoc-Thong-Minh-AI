@@ -177,8 +177,9 @@ private fun SettingsScreen(dark: Boolean, onDarkChange: (Boolean) -> Unit) {
                         flashcardPrefs.edit().putInt("deck_index", state.optInt("deckIndex", 0).coerceAtLeast(0)).putInt("mastered", state.optInt("mastered", 0).coerceAtLeast(0)).putInt("again", state.optInt("again", 0).coerceAtLeast(0)).putString("deck_order", state.optString("deckOrder", "")).apply()
                     }
                     json.optJSONObject("vietnameseGlosses")?.let { glosses ->
+                        // Restore is a snapshot: remove stale translations before applying the backup.
                         val glossPrefs = context.getSharedPreferences("hsk_vietnamese_glosses", android.content.Context.MODE_PRIVATE)
-                        val editor = glossPrefs.edit()
+                        val editor = glossPrefs.edit().clear()
                         val keys = glosses.keys()
                         while (keys.hasNext()) {
                             val key = keys.next()
@@ -202,11 +203,35 @@ private fun SettingsScreen(dark: Boolean, onDarkChange: (Boolean) -> Unit) {
                     }
                     val database = com.trungtalk.data.db.TrungTalkDatabase.get(context)
                     json.optJSONArray("srsCards")?.let { array ->
-                        val cards = (0 until array.length()).mapNotNull { i -> array.optJSONObject(i)?.let { com.trungtalk.data.db.SrsCard(it.optString("cardId"),it.optInt("box",1),it.optLong("dueAt",System.currentTimeMillis()),it.optInt("repetitions",0)) } }
+                        val cards = (0 until array.length()).mapNotNull { i ->
+                            array.optJSONObject(i)?.let { item ->
+                                val cardId = item.optString("cardId").trim()
+                                if (cardId.isBlank()) null else com.trungtalk.data.db.SrsCard(
+                                    cardId=cardId,
+                                    box=item.optInt("box",1).coerceIn(1,5),
+                                    dueAt=item.optLong("dueAt",System.currentTimeMillis()).coerceAtLeast(0L),
+                                    repetitions=item.optInt("repetitions",0).coerceAtLeast(0)
+                                )
+                            }
+                        }
+                        // An explicitly present empty array means the backup had no SRS cards.
+                        database.srsDao().clearAll()
                         if(cards.isNotEmpty()) database.srsDao().saveAll(cards)
                     }
                     json.optJSONArray("grammarHistory")?.let { array ->
-                        val entries = (0 until array.length()).mapNotNull { i -> array.optJSONObject(i)?.let { com.trungtalk.data.db.GrammarEntry(targetWord=it.optString("targetWord"),pinyin=it.optString("pinyin"),meaning=it.optString("meaning"),userSentence=it.optString("userSentence"),practiceScore=it.optInt("practiceScore"),correction=it.optString("correction"),feedback=it.optString("feedback"),createdAt=it.optLong("createdAt",System.currentTimeMillis())) } }
+                        val entries = (0 until array.length()).mapNotNull { i ->
+                            array.optJSONObject(i)?.let { item ->
+                                val targetWord = item.optString("targetWord").trim()
+                                if (targetWord.isBlank()) null else com.trungtalk.data.db.GrammarEntry(
+                                    targetWord=targetWord,pinyin=item.optString("pinyin"),meaning=item.optString("meaning"),
+                                    userSentence=item.optString("userSentence"),practiceScore=item.optInt("practiceScore").coerceIn(0,100),
+                                    correction=item.optString("correction"),feedback=item.optString("feedback"),
+                                    createdAt=item.optLong("createdAt",System.currentTimeMillis()).coerceAtLeast(0L)
+                                )
+                            }
+                        }
+                        // Avoid duplicate history rows when the same backup is restored more than once.
+                        database.grammarDao().clearAll()
                         if(entries.isNotEmpty()) database.grammarDao().insertAll(entries)
                     }
                 }
