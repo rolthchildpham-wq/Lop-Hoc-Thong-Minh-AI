@@ -20,6 +20,22 @@ import com.trungtalk.data.db.*
 import com.trungtalk.ai.BackendClient
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
+
+/** Retries transient dictionary translation requests without losing already-saved batches. */
+private suspend fun translateBatchWithRetry(client: BackendClient, words: org.json.JSONArray): String {
+ var last: Exception? = null
+ for (attempt in 0 until 3) {
+  try { return client.translateBatch(words) }
+  catch (e: CancellationException) { throw e }
+  catch (e: Exception) {
+   last = e
+   if (attempt < 2) delay(1200L * (attempt + 1))
+  }
+ }
+ throw last ?: IllegalStateException("Dịch từ vựng thất bại.")
+}
+
 
 /** Shared speech engine: queues text while initialization runs and checks Chinese voice availability. */
 private object TrungTalkSpeech {
@@ -624,7 +640,7 @@ fun VocabularyScreen() {
        for((batchIndex,batch) in batches.withIndex()) {
         val input=org.json.JSONArray()
         batch.forEach{word->input.put(org.json.JSONObject().put("hanzi",word.hanzi).put("pinyin",word.pinyin).put("english",word.meaning.removePrefix("Nghĩa tham khảo (EN): ").trim()))}
-        val raw=BackendClient(context).translateBatch(input)
+        val raw=translateBatchWithRetry(BackendClient(context),input)
         val clean=raw.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
         val array=org.json.JSONArray(clean)
         val batchGlosses=mutableMapOf<String,String>()
@@ -683,7 +699,7 @@ fun VocabularyScreen() {
        scope.launch {
         try {
          val input=org.json.JSONArray().put(org.json.JSONObject().put("hanzi",word.hanzi).put("pinyin",word.pinyin).put("english",word.meaning.removePrefix("Nghĩa tham khảo (EN): ").trim()))
-         val raw=BackendClient(context).translateBatch(input).trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
+         val raw=translateBatchWithRetry(BackendClient(context),input).trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
          val vi=org.json.JSONArray(raw).optJSONObject(0)?.optString("meaning_vi")?.trim().orEmpty()
          if(vi.isNotBlank()) { viGlosses=viGlosses+(word.hanzi to vi); viPrefs.edit().putString(word.hanzi,vi).apply() } else srsMessage="AI chưa trả nghĩa cho ${word.hanzi}."
         } catch(e:Exception) { srsMessage="Dịch ${word.hanzi} lỗi: ${e.message ?: "không kết nối"}" }
