@@ -207,11 +207,10 @@ fun HskScreen() {
   finally { loading=false }
  }
  val questions=remember(quizDictionary) {
-  val glosses=ctx.getSharedPreferences("hsk_vietnamese_glosses",android.content.Context.MODE_PRIVATE)
   val source=(starterDictionary+quizDictionary).distinctBy { it.hanzi+"|"+it.pinyin }
   val candidates=source.mapNotNull { w ->
-   val vi=glosses.getString(w.hanzi,null)?.trim().orEmpty()
    val en=w.meaning.removePrefix("Nghĩa tham khảo (EN): ").trim()
+   val vi=HskVocabularyRepository.vietnameseMeaning(ctx,w.hanzi)
    val meaning=vi.ifBlank { en }
    if(meaning.isBlank() || meaning=="Chưa có nghĩa trong dữ liệu nguồn") null else Triple(w,meaning,vi.isNotBlank())
   }.distinctBy { it.second }.filter { it.second.isNotBlank() }
@@ -353,8 +352,8 @@ fun SrsScreen() {
    val dictionaryWord=dictionary.firstOrNull { it.hanzi == card.cardId }
    if(dictionaryWord!=null) {
     Text(dictionaryWord.pinyin,style=MaterialTheme.typography.titleMedium,color=MaterialTheme.colorScheme.primary)
-    val savedVietnamese=viGlossPrefs.getString(dictionaryWord.hanzi,null)?.trim().orEmpty()
-    Text(savedVietnamese.takeIf { it.isNotBlank() } ?: dictionaryWord.meaning,style=MaterialTheme.typography.bodyLarge)
+    val sharedMeaning=HskVocabularyRepository.vietnameseMeaning(ctx,dictionaryWord.hanzi,dictionaryWord.meaning)
+    Text(sharedMeaning,style=MaterialTheme.typography.bodyLarge)
     Text("Ví dụ: ${dictionaryWord.example}",style=MaterialTheme.typography.bodyMedium)
    } else {
     val aiWord=runCatching {
