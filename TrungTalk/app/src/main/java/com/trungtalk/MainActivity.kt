@@ -428,7 +428,7 @@ private fun FlashcardScreen() {
    }
   }.getOrDefault(emptyList())
   val glosses=context.getSharedPreferences("hsk_vietnamese_glosses",android.content.Context.MODE_PRIVATE)
-  val translatedHsk=hskDeckWords.map { w -> w.copy(meaning=glosses.getString(w.hanzi,null) ?: w.meaning, exampleMeaning=glosses.getString(w.hanzi+"_example",null) ?: w.exampleMeaning) }
+  val translatedHsk=hskDeckWords.map { w -> w.copy(meaning=HskVocabularyRepository.vietnameseMeaning(context,w.hanzi,w.meaning), exampleMeaning=glosses.getString(w.hanzi+"_example",null) ?: w.exampleMeaning) }
   val combined = (words + aiCards + translatedHsk).distinctBy { it.hanzi }
   val savedOrder=reviewPrefs.getString("deck_order",null)?.split("|")?.filter{it.isNotBlank()}
   val byHanzi=combined.associateBy{it.hanzi}
