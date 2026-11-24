@@ -631,40 +631,79 @@ private fun transcriptSimilarity(expected: String, actual: String): Int {
 
 @Composable
 private fun SpeakingScreen() {
+    val context = LocalContext.current
     var transcript by rememberSaveable { mutableStateOf("") }
     var target by rememberSaveable { mutableStateOf("你好，我叫……。我在工厂工作。") }
     var message by rememberSaveable { mutableStateOf("") }
+    var tts by remember { mutableStateOf<TextToSpeech?>(null) }
+    var ttsReady by remember { mutableStateOf(false) }
+    val practiceSentences = listOf(
+        "你好，我叫范河北。我来自越南。" to "Chào bạn, tôi tên là Phạm Hà Bắc. Tôi đến từ Việt Nam.",
+        "今天的工作已经完成了。" to "Công việc hôm nay đã hoàn thành.",
+        "这个订单的数量是五千件。" to "Số lượng đơn hàng này là 5.000 sản phẩm.",
+        "设备有一个问题，我们需要检查一下。" to "Thiết bị có một vấn đề, chúng ta cần kiểm tra.",
+        "请问，什么时候可以交货？" to "Xin hỏi, khi nào có thể giao hàng?"
+    )
+    DisposableEffect(context) {
+        val engine = TextToSpeech(context) { status ->
+            ttsReady = status == TextToSpeech.SUCCESS
+            if (status == TextToSpeech.SUCCESS) {
+                val language = tts?.setLanguage(Locale.SIMPLIFIED_CHINESE)
+                if (language == TextToSpeech.LANG_MISSING_DATA || language == TextToSpeech.LANG_NOT_SUPPORTED) ttsReady = false
+            }
+        }
+        tts = engine
+        onDispose { engine.stop(); engine.shutdown(); tts = null }
+    }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         transcript = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull().orEmpty()
         if (transcript.isBlank()) message = "Không nhận được giọng nói. Hãy thử lại hoặc kiểm tra dịch vụ nhận dạng trên máy."
     }
-    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Luyện nói tiếng Trung", style = MaterialTheme.typography.headlineSmall)
-        OutlinedTextField(target,{target=it},label={Text("Câu mẫu cần luyện")},modifier=Modifier.fillMaxWidth(),minLines=2)
-        Button(onClick = {
-            message = ""
-            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "zh-CN")
-                putExtra(RecognizerIntent.EXTRA_PROMPT, "请用中文说话")
+        Text("Quy trình: nghe câu mẫu → tự nói → xem nhận dạng → luyện lại.")
+        Text("Câu luyện theo tình huống thực tế", style = MaterialTheme.typography.titleMedium)
+        practiceSentences.forEach { (sentence, translation) ->
+            OutlinedButton(onClick = { target = sentence; transcript = ""; message = "" }, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.fillMaxWidth()) { Text(sentence); Text(translation, style = MaterialTheme.typography.bodySmall) }
             }
-            try { launcher.launch(intent) } catch (_: Exception) { message = "Thiết bị chưa có ứng dụng nhận dạng giọng nói tương thích." }
-        }, modifier = Modifier.fillMaxWidth()) { Text("🎙️ Bắt đầu nhận dạng giọng nói") }
+        }
+        OutlinedTextField(target,{target=it;transcript=""},label={Text("Câu mẫu cần luyện")},modifier=Modifier.fillMaxWidth(),minLines=2)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(enabled=ttsReady,onClick={
+                tts?.setSpeechRate(0.8f)
+                tts?.speak(target,TextToSpeech.QUEUE_FLUSH,null,"speaking-target")
+            },modifier=Modifier.weight(1f)){Text("🔊 Nghe câu mẫu")}
+            Button(onClick = {
+                message = ""
+                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, "zh-CN")
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "zh-CN")
+                    putExtra(RecognizerIntent.EXTRA_PROMPT, "请用中文说话")
+                }
+                try { launcher.launch(intent) } catch (_: Exception) { message = "Thiết bị chưa có ứng dụng nhận dạng giọng nói tương thích." }
+            }, modifier = Modifier.weight(1f)) { Text("🎙️ Tôi nói") }
+        }
         if (message.isNotBlank()) Text(message, color = MaterialTheme.colorScheme.error)
         if (transcript.isNotBlank()) {
             val score = transcriptSimilarity(target,transcript)
             Text("Kết quả nhận dạng", style = MaterialTheme.typography.titleMedium)
-            Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp)) {
+            Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(transcript, style = MaterialTheme.typography.headlineSmall)
                 Text("Độ khớp văn bản tham khảo: $score/100",style=MaterialTheme.typography.titleLarge,color=MaterialTheme.colorScheme.primary)
                 LinearProgressIndicator(progress=score/100f,modifier=Modifier.fillMaxWidth())
-                Text("Câu mẫu: $target", style=MaterialTheme.typography.bodySmall)
+                Text("Câu mẫu: $target", style = MaterialTheme.typography.bodySmall)
+                OutlinedButton(enabled=ttsReady,onClick={
+                    tts?.setSpeechRate(0.8f)
+                    tts?.speak(transcript,TextToSpeech.QUEUE_FLUSH,null,"speaking-recognized")
+                },modifier=Modifier.fillMaxWidth()){Text("🔊 Nghe lại câu nhận dạng")}
+                Button(onClick={transcript="";message="Sẵn sàng luyện lại câu này."},modifier=Modifier.fillMaxWidth()){Text("Luyện lại câu này")}
             } }
-            Text("Điểm này chỉ so sánh văn bản nhận dạng với câu mẫu, không đo thanh điệu, âm vị hoặc chất lượng âm thanh. Muốn chấm phát âm chuyên sâu cần Azure Speech Pronunciation Assessment.", style = MaterialTheme.typography.bodySmall)
+            Text("Đây chỉ là độ giống nhau giữa văn bản nhận dạng và câu mẫu, không phải điểm phát âm hay thanh điệu. Kết quả phụ thuộc dịch vụ nhận dạng trên điện thoại.", style = MaterialTheme.typography.bodySmall)
         }
     }
 }
-
 @Composable
 private fun StatsScreen() {
     val context = LocalContext.current
