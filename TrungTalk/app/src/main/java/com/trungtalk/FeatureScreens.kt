@@ -337,7 +337,8 @@ fun SrsScreen() {
    val dictionaryWord=dictionary.firstOrNull { it.hanzi == card.cardId }
    if(dictionaryWord!=null) {
     Text(dictionaryWord.pinyin,style=MaterialTheme.typography.titleMedium,color=MaterialTheme.colorScheme.primary)
-    Text(viGlossPrefs.getString(dictionaryWord.hanzi,null) ?: dictionaryWord.meaning,style=MaterialTheme.typography.bodyLarge)
+    val savedVietnamese=viGlossPrefs.getString(dictionaryWord.hanzi,null)?.trim().orEmpty()
+    Text(savedVietnamese.takeIf { it.isNotBlank() } ?: dictionaryWord.meaning,style=MaterialTheme.typography.bodyLarge)
     Text("Ví dụ: ${dictionaryWord.example}",style=MaterialTheme.typography.bodyMedium)
    } else {
     val aiWord=runCatching {
