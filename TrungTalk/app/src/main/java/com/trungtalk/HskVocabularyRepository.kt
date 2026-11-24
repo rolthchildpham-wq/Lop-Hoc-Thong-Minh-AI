@@ -106,6 +106,15 @@ object HskVocabularyRepository {
         "昨天" to "hôm qua"
     )
 
+    /** Single Vietnamese gloss resolution order: saved gloss, verified starter gloss, source fallback. */
+    fun vietnameseMeaning(context: Context, hanzi: String, fallback: String = ""): String {
+        val saved = context.getSharedPreferences("hsk_vietnamese_glosses", Context.MODE_PRIVATE)
+            .getString(hanzi, null)?.trim().orEmpty()
+        if (saved.isNotBlank()) return saved
+        vietnameseGloss[hanzi]?.let { return it }
+        return fallback.trim()
+    }
+
     private fun applyVietnameseGloss(words: List<DictWord>): List<DictWord> =
         words.map { word -> vietnameseGloss[word.hanzi]?.let { word.copy(meaning = it, example = word.example) } ?: word }
 
