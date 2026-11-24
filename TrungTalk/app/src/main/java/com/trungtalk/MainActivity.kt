@@ -290,7 +290,7 @@ private fun SettingsScreen(dark: Boolean, onDarkChange: (Boolean) -> Unit) {
 
         Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Sao lưu tiến độ học", style = MaterialTheme.typography.titleMedium)
-            Text("Hiện đã hoàn thành: " + completed.size + " bài. JSON v5 gồm tiến độ bài học, từ yêu thích, flashcard AI và trạng thái bộ thẻ, nghĩa tiếng Việt đã dịch/lưu, chat AI, hội thoại đóng vai, thống kê HSK, câu sai cần ôn, thẻ SRS và Grammar. Lịch sử luyện tập phút chưa được sao lưu.")
+            Text("Hiện đã hoàn thành: " + completed.size + " bài. JSON v6 gồm tiến độ bài học, mastery chữ Hán và truyện đã hoàn thành, từ yêu thích, flashcard AI, nghĩa tiếng Việt, chat AI, hội thoại đóng vai, thống kê HSK, thẻ SRS và lịch sử Grammar. Lịch sử luyện tập phút chưa được sao lưu.")
             Button(onClick = { exportLauncher.launch("TrungTalk_Backup.json") }, modifier = Modifier.fillMaxWidth()) { Text("Xuất bản sao lưu") }
             OutlinedButton(onClick = { importLauncher.launch(arrayOf("application/json", "text/*")) }, modifier = Modifier.fillMaxWidth()) { Text("Nhập bản sao lưu") }
         } }
