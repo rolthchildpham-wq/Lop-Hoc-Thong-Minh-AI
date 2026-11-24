@@ -521,7 +521,8 @@ private fun FlashcardScreen() {
     savingReview=true
     scope.launch {
      try {
-      dao.save(com.trungtalk.data.db.SrsCard(cardId=word.hanzi,box=1,dueAt=System.currentTimeMillis()+10*60*1000,repetitions=0))
+      val previous=dao.get(word.hanzi)
+      dao.save(com.trungtalk.data.db.SrsCard(cardId=word.hanzi,box=1,dueAt=System.currentTimeMillis()+10*60*1000,repetitions=(previous?.repetitions ?: 0)+1))
       again++;reviewPrefs.edit().putInt("again",again).apply();show=false;index=(index+1)%deck.size;reviewPrefs.edit().putInt("deck_index",index).apply()
      } catch(e:Exception) { aiError="Không lưu được lịch ôn tập: " + (e.message ?: "thử lại") }
      finally { savingReview=false }
