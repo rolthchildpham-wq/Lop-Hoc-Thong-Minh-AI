@@ -26,6 +26,7 @@ import com.trungtalk.ai.BackendClient
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 /** Retries transient dictionary translation requests without losing already-saved batches. */
 private suspend fun translateBatchWithRetry(client: BackendClient, words: org.json.JSONArray): String {
