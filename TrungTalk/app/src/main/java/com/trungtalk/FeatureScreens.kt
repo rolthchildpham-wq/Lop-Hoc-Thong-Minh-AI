@@ -682,7 +682,8 @@ fun VocabularyScreen() {
         if(missing.isNotEmpty()) throw IllegalStateException("AI thiếu nghĩa: ${missing.take(5).joinToString{it.hanzi}}")
         val editor=viPrefs.edit()
         batchGlosses.forEach{(hanzi,meaning)->editor.putString(hanzi,meaning)}
-        editor.apply()
+        val persisted=withContext(kotlinx.coroutines.Dispatchers.IO){editor.commit()}
+        if(!persisted) throw IllegalStateException("Không thể ghi lô nghĩa tiếng Việt vào bộ nhớ; hãy thử lại lô này.")
         viGlosses=viGlosses+batchGlosses
         translated+=batchGlosses.size
         bulkProgress="Đã dịch $translated/${pending.size} từ HSK · lô ${batchIndex+1}/${batches.size}"
@@ -729,7 +730,10 @@ fun VocabularyScreen() {
          val input=org.json.JSONArray().put(org.json.JSONObject().put("hanzi",word.hanzi).put("pinyin",word.pinyin).put("english",word.meaning.removePrefix("Nghĩa tham khảo (EN): ").trim()))
          val raw=translateBatchWithRetry(BackendClient(context),input).trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
          val vi=org.json.JSONArray(raw).optJSONObject(0)?.optString("meaning_vi")?.trim().orEmpty()
-         if(vi.isNotBlank()) { viGlosses=viGlosses+(word.hanzi to vi); viPrefs.edit().putString(word.hanzi,vi).apply() } else srsMessage="AI chưa trả nghĩa cho ${word.hanzi}."
+         if(vi.isNotBlank()) {
+          val persisted=withContext(kotlinx.coroutines.Dispatchers.IO){viPrefs.edit().putString(word.hanzi,vi).commit()}
+          if(persisted) viGlosses=viGlosses+(word.hanzi to vi) else srsMessage="Không thể lưu nghĩa tiếng Việt của ${word.hanzi}; hãy thử lại."
+         } else srsMessage="AI chưa trả nghĩa cho ${word.hanzi}."
         } catch(e:Exception) { srsMessage="Dịch ${word.hanzi} lỗi: ${e.message ?: "không kết nối"}" }
         finally { translating=translating - word.hanzi }
        }

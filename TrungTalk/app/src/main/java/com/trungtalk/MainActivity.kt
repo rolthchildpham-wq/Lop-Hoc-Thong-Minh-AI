@@ -599,13 +599,28 @@ private fun FlashcardScreen() {
      }
      if(added.isEmpty()) aiError="AI không trả về thẻ hợp lệ hoặc từ bị trùng. Hãy thử chủ đề khác."
      else {
-      deck.addAll(added)
       val existingAi = org.json.JSONArray(reviewPrefs.getString("ai_cards_json", "[]"))
       added.forEach { w ->
        existingAi.put(org.json.JSONObject().put("hanzi",w.hanzi).put("pinyin",w.pinyin).put("meaning",w.meaning).put("illustration",w.illustration).put("example",w.example).put("examplePinyin",w.examplePinyin).put("exampleMeaning",w.exampleMeaning).put("category",w.category))
       }
-      reviewPrefs.edit().putString("ai_cards_json",existingAi.toString()).putString("deck_order",deck.joinToString("|"){it.hanzi}).apply()
-      index=deck.lastIndex;reviewPrefs.edit().putInt("deck_index",index).apply();show=true;added.forEach{dao.save(com.trungtalk.data.db.SrsCard(cardId=it.hanzi))}
+      val nextIndex = deck.size + added.size - 1
+      val nextOrder = (deck.map { it.hanzi } + added.map { it.hanzi }).joinToString("|")
+      val saved = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+       reviewPrefs.edit()
+        .putString("ai_cards_json",existingAi.toString())
+        .putString("deck_order",nextOrder)
+        .putInt("deck_index",nextIndex)
+        .commit()
+      }
+      if (!saved) throw IllegalStateException("Không thể lưu bộ flashcard AI vào bộ nhớ. Hãy thử lại.")
+      deck.addAll(added)
+      index=nextIndex
+      show=true
+      try {
+       dao.saveAll(added.map { com.trungtalk.data.db.SrsCard(cardId=it.hanzi) })
+      } catch (e: Exception) {
+       aiError="Đã lưu thẻ AI, nhưng chưa thêm được lịch ôn SRS: " + (e.message ?: "thử lại")
+      }
      }
     } catch(e:Exception) { aiError=e.message ?: "Lỗi tạo thẻ AI. Kiểm tra backend và thử lại." }
     finally { aiBusy=false }
@@ -764,7 +779,8 @@ private fun AiScreen() {
         mutableStateListOf<Pair<String,String>>().apply {
             runCatching {
                 val saved = org.json.JSONArray(aiPrefs.getString("history", "[]"))
-                for (i in 0 until saved.length()) {
+                val firstRecent = (saved.length() - 200).coerceAtLeast(0)
+                for (i in firstRecent until saved.length()) {
                     val item = saved.optJSONObject(i) ?: continue
                     val role = item.optString("role")
                     val content = item.optString("content")
@@ -773,9 +789,10 @@ private fun AiScreen() {
             }
         }
     }
-    LaunchedEffect(history.size) {
+    // Persist the latest 200 messages; key by content so pruning at the limit still saves changes.
+    LaunchedEffect(history.toList()) {
         val saved = org.json.JSONArray()
-        history.forEach { (role, content) -> saved.put(org.json.JSONObject().put("role", role).put("content", content)) }
+        history.takeLast(200).forEach { (role, content) -> saved.put(org.json.JSONObject().put("role", role).put("content", content)) }
         aiPrefs.edit().putString("history", saved.toString()).apply()
     }
     var input by rememberSaveable { mutableStateOf("") }
@@ -792,7 +809,7 @@ private fun AiScreen() {
             confirmButton = { TextButton(onClick = { history.clear(); aiPrefs.edit().remove("history").apply(); error = ""; confirmClear = false }) { Text("Xóa") } },
             dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Hủy") } }
         )
-        Text("Hỏi bằng tiếng Việt hoặc tiếng Trung. TrungTalk kết nối AI qua Worker mặc định; nếu mất mạng, thử lại sau.")
+        Text("Hỏi bằng tiếng Việt hoặc tiếng Trung. Lịch sử lưu trên thiết bị, tối đa 200 lượt gần nhất.")
         androidx.compose.foundation.lazy.LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(history) { item ->
                 Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) {
@@ -804,11 +821,14 @@ private fun AiScreen() {
         if(error.isNotBlank()) Text(error,color=MaterialTheme.colorScheme.error)
         OutlinedTextField(input,{input=it},label={Text("Nhập câu hỏi…")},modifier=Modifier.fillMaxWidth())
         Button(enabled=input.isNotBlank() && !busy,onClick={
-            val message=input.trim(); input=""; error=""; history.add("user" to message); busy=true
+            val message=input.trim(); input=""; error=""; history.add("user" to message)
+            while (history.size > 200) history.removeAt(0)
+            busy=true
             scope.launch {
                 try {
                     val answer=com.trungtalk.ai.BackendClient(context).chat(history.dropLast(1).takeLast(12).toList(),message)
                     history.add("assistant" to answer)
+                    while (history.size > 200) history.removeAt(0)
                 } catch(e:Exception) { error=e.message ?: "Không kết nối được AI." }
                 finally { busy=false }
             }
