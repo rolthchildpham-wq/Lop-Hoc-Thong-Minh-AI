@@ -691,7 +691,7 @@ fun VocabularyScreen() {
        IconButton(onClick={TrungTalkSpeech.speak(context,word.hanzi)}) { Text("🔊") }
       }
       Text(word.traditional+" · "+word.pinyin,style=MaterialTheme.typography.titleMedium)
-      Text(viGlosses[word.hanzi] ?: word.meaning,style=MaterialTheme.typography.bodyLarge)
+      Text(HskVocabularyRepository.vietnameseMeaning(context,word.hanzi,word.meaning),style=MaterialTheme.typography.bodyLarge)
       Text(word.example,style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.secondary)
       OutlinedButton(enabled=word.hanzi !in translating,onClick={
        translating=translating+word.hanzi
