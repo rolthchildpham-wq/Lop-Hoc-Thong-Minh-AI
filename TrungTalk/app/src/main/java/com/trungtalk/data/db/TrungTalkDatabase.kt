@@ -19,6 +19,7 @@ data class PracticeLog(@PrimaryKey(autoGenerate = true) val id: Long = 0, val ca
 @Dao interface GrammarDao {
  @Insert suspend fun insert(item: GrammarEntry)
  @Insert suspend fun insertAll(items: List<GrammarEntry>)
+ @Query("DELETE FROM grammar_history") suspend fun clearAll()
  @Query("SELECT * FROM grammar_history ORDER BY createdAt DESC LIMIT 100") fun recent(): Flow<List<GrammarEntry>>
  @Query("SELECT * FROM grammar_history ORDER BY createdAt DESC") suspend fun allForBackup(): List<GrammarEntry>
 }
@@ -28,6 +29,7 @@ data class PracticeLog(@PrimaryKey(autoGenerate = true) val id: Long = 0, val ca
  @Query("SELECT * FROM srs_cards WHERE cardId = :id LIMIT 1") suspend fun get(id: String): SrsCard?
  @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun save(item: SrsCard)
  @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun saveAll(items: List<SrsCard>)
+ @Query("DELETE FROM srs_cards") suspend fun clearAll()
  @Query("SELECT * FROM srs_cards ORDER BY box ASC") suspend fun allForBackup(): List<SrsCard>
 }
 @Dao interface PracticeDao {
