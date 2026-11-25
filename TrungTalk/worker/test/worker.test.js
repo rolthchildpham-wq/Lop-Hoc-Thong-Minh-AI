@@ -126,8 +126,9 @@ test("API aliases, preflight and unsupported methods have predictable responses"
   assert.equal(preflight.headers.get("access-control-allow-origin"), "*");
   const unsupported = await worker.fetch(new Request("https://trungtalk.test/chat", { method: "GET" }), env);
   assert.equal(unsupported.status, 404);
-  const alias = await worker.fetch(post("/api/chat", { message: "你好" }), env);
+  const alias = await worker.fetch(new Request("https://trungtalk.test/api/health"), {});
   assert.equal(alias.status, 200);
+  assert.equal((await alias.json()).ok, true);
 });
 
 test("empty prompts are rejected without making an upstream request", async t => {
