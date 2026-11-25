@@ -178,3 +178,21 @@ test("translate rejects duplicate or missing source words in model output", asyn
   assert.equal(response.status, 502);
   assert.equal((await response.json()).error, "upstream_error");
 });
+
+
+test("translate rejects oversized batches and malformed word fields before calling Gemini", async t => {
+  t.mock.method(globalThis, "fetch", async () => {
+    assert.fail("Gemini must not be called for invalid translation input");
+  });
+  const tooMany = await worker.fetch(post("/translate", {
+    words: Array.from({ length: 21 }, (_, i) => ({ hanzi: `词${i}` }))
+  }), env);
+  assert.equal(tooMany.status, 413);
+  assert.equal((await tooMany.json()).error, "batch_too_large");
+
+  const invalid = await worker.fetch(post("/translate", {
+    words: [{ hanzi: "工作", pinyin: "p".repeat(101), english: "work" }]
+  }), env);
+  assert.equal(invalid.status, 400);
+  assert.equal((await invalid.json()).error, "invalid_translation_word");
+});
