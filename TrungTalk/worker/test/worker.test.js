@@ -100,7 +100,6 @@ test("grammar endpoint requires its explanation and examples structure", async t
   })));
   const response = await worker.fetch(post("/grammar", { prompt: "解释 工作" }), env);
   assert.equal(response.status, 200);
-  assert.equal(response.status, 200);
 });
 
 test("chat remains plain text and keeps the latest history window", async t => {
@@ -117,4 +116,63 @@ test("chat remains plain text and keeps the latest history window", async t => {
   assert.equal((await response.json()).text, "可以，我们继续练习。");
   assert.equal(prompt.includes("turn-0"), false);
   assert.equal(prompt.includes("turn-13"), true);
+});
+
+
+test("API aliases, preflight and unsupported methods have predictable responses", async () => {
+  const preflight = await worker.fetch(new Request("https://trungtalk.test/api/chat", { method: "OPTIONS" }), env);
+  assert.equal(preflight.status, 204);
+  assert.equal(preflight.headers.get("access-control-allow-origin"), "*");
+  const unsupported = await worker.fetch(new Request("https://trungtalk.test/chat", { method: "GET" }), env);
+  assert.equal(unsupported.status, 404);
+  const alias = await worker.fetch(post("/api/chat", { message: "你好" }), env);
+  assert.equal(alias.status, 200);
+});
+
+test("empty prompts are rejected without making an upstream request", async t => {
+  t.mock.method(globalThis, "fetch", async () => {
+    assert.fail("Gemini must not be called for an empty prompt");
+  });
+  const response = await worker.fetch(post("/chat", { message: "   " }), env);
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).error, "empty_prompt");
+});
+
+test("invalid structured model output is rejected and falls back to the next model", async t => {
+  const models = [];
+  t.mock.method(globalThis, "fetch", async url => {
+    const model = new URL(String(url)).pathname.split("/models/")[1].split(":")[0];
+    models.push(model);
+    return geminiResponse(models.length === 1
+      ? JSON.stringify({ score: 140, corrected: "x", explanation_vi: "bad" })
+      : JSON.stringify({ score: 90, corrected: "我很好。", explanation_vi: "Câu đúng." }));
+  });
+  const response = await worker.fetch(post("/evaluate", { prompt: "我很好" }), env);
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).model, "gemini-3.5-flash-lite");
+  assert.equal(models.length, 2);
+});
+
+test("rate limiting returns a retry hint after the configured device quota", async () => {
+  let count = 0;
+  const rateStore = {
+    async get() { return String(count); },
+    async put(_key, value) { count = Number(value); }
+  };
+  count = 25;
+  const response = await worker.fetch(post("/chat", { message: "hello" }), { ...env, RATE_LIMIT: rateStore });
+  assert.equal(response.status, 429);
+  assert.equal((await response.json()).retry_after, 60);
+});
+
+test("translate rejects duplicate or missing source words in model output", async t => {
+  t.mock.method(globalThis, "fetch", async () => geminiResponse(JSON.stringify([
+    { hanzi: "工作", meaning_vi: "công việc" },
+    { hanzi: "工作", meaning_vi: "làm việc" }
+  ])));
+  const response = await worker.fetch(post("/translate", { words: [
+    { hanzi: "工作", english: "work" }, { hanzi: "设备", english: "equipment" }
+  ] }), env);
+  assert.equal(response.status, 502);
+  assert.equal((await response.json()).error, "upstream_error");
 });
