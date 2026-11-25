@@ -119,7 +119,8 @@ test("chat remains plain text and keeps the latest history window", async t => {
 });
 
 
-test("API aliases, preflight and unsupported methods have predictable responses", async () => {
+test("API aliases, preflight and unsupported methods have predictable responses", async t => {
+  t.mock.method(globalThis, "fetch", async () => geminiResponse("你好，我们开始吧。"));
   const preflight = await worker.fetch(new Request("https://trungtalk.test/api/chat", { method: "OPTIONS" }), env);
   assert.equal(preflight.status, 204);
   assert.equal(preflight.headers.get("access-control-allow-origin"), "*");
