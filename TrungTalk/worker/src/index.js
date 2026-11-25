@@ -92,7 +92,12 @@ export default {
   if(!env.GEMINI_API_KEY) return json({error:"server_not_configured",detail:"Worker thiếu GEMINI_API_KEY"},503);
   let payload;
   try { payload=await request.json(); } catch { return json({error:"invalid_json"},400); }
-  const prompt=buildPrompt(route,payload||{});
+  payload=payload||{};
+  const hasText=value=>typeof value==="string"&&value.trim().length>0;
+  if(route==="/chat"&&!hasText(payload.message)) return json({error:"empty_prompt"},400);
+  if((route==="/grammar"||route==="/evaluate")&&!hasText(payload.prompt)) return json({error:"empty_prompt"},400);
+  if(route==="/translate"&&(!Array.isArray(payload.words)||!payload.words.some(word=>hasText(word?.hanzi)))) return json({error:"empty_prompt"},400);
+  const prompt=buildPrompt(route,payload);
   if(!prompt.trim()) return json({error:"empty_prompt"},400);
   const device=(request.headers.get("x-device-id")||"anonymous").slice(0,100);
   const bucket=Math.floor(Date.now()/1000/WINDOW);
