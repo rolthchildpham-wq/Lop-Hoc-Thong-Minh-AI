@@ -96,7 +96,15 @@ export default {
   const hasText=value=>typeof value==="string"&&value.trim().length>0;
   if(route==="/chat"&&!hasText(payload.message)) return json({error:"empty_prompt"},400);
   if((route==="/grammar"||route==="/evaluate")&&!hasText(payload.prompt)) return json({error:"empty_prompt"},400);
-  if(route==="/translate"&&(!Array.isArray(payload.words)||!payload.words.some(word=>hasText(word?.hanzi)))) return json({error:"empty_prompt"},400);
+  if(route==="/translate") {
+   if(!Array.isArray(payload.words)||payload.words.length===0) return json({error:"empty_prompt"},400);
+   if(payload.words.length>20) return json({error:"batch_too_large",detail:"Mỗi lô dịch tối đa 20 từ."},413);
+   const invalid=payload.words.some(word=>
+    !word||!hasText(word.hanzi)||word.hanzi.trim().length>32||
+    (word.pinyin!=null&&String(word.pinyin).length>100)||
+    (word.english!=null&&String(word.english).length>240));
+   if(invalid) return json({error:"invalid_translation_word",detail:"Mỗi mục cần Hán tự hợp lệ; Pinyin tối đa 100 ký tự, nghĩa tham khảo tối đa 240 ký tự."},400);
+  }
   const prompt=buildPrompt(route,payload);
   if(!prompt.trim()) return json({error:"empty_prompt"},400);
   const device=(request.headers.get("x-device-id")||"anonymous").slice(0,100);
