@@ -116,6 +116,8 @@ export default {
     (word.pinyin!=null&&String(word.pinyin).length>100)||
     (word.english!=null&&String(word.english).length>240));
    if(invalid) return json({error:"invalid_translation_word",detail:"Mỗi mục cần Hán tự hợp lệ; Pinyin tối đa 100 ký tự, nghĩa tham khảo tối đa 240 ký tự."},400);
+   const uniqueWords=new Set(payload.words.map(word=>word.hanzi.trim()));
+   if(uniqueWords.size!==payload.words.length) return json({error:"duplicate_translation_word",detail:"Một lô dịch không được chứa Hán tự trùng lặp."},400);
   }
   const prompt=buildPrompt(route,payload);
   if(!prompt.trim()) return json({error:"empty_prompt"},400);
