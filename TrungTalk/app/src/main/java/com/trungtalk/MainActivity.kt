@@ -467,11 +467,26 @@ private fun FlashcardScreen() {
   val glosses=context.getSharedPreferences("hsk_vietnamese_glosses",android.content.Context.MODE_PRIVATE)
   val translatedHsk=hskDeckWords.map { w -> w.copy(meaning=HskVocabularyRepository.vietnameseMeaning(context,w.hanzi,w.meaning), exampleMeaning=glosses.getString(w.hanzi+"_example",null) ?: w.exampleMeaning) }
   val combined = (words + aiCards + translatedHsk).distinctBy { it.hanzi }
-  val savedOrder=reviewPrefs.getString("deck_order",null)?.split("|")?.filter{it.isNotBlank()}
+  val savedOrder=reviewPrefs.getString("deck_order",null)?.split("|")?.filter{it.isNotBlank()}.orEmpty()
   val byHanzi=combined.associateBy{it.hanzi}
-  mutableStateListOf<Word>().apply {
-   if(savedOrder!=null && savedOrder.size==combined.size && savedOrder.all{it in byHanzi}) addAll(savedOrder.mapNotNull{byHanzi[it]})
-   else { val shuffled=combined.shuffled(); addAll(shuffled); reviewPrefs.edit().putString("deck_order",shuffled.joinToString("|"){it.hanzi}).apply() }
+  // Keep the learner's existing order when HSK data arrives asynchronously.
+  // Remove stale IDs, de-duplicate old entries, and append only newly available words.
+  val knownOrder=savedOrder.filter{it in byHanzi}.distinct()
+  val mergedOrder=if(knownOrder.isEmpty()) {
+   combined.shuffled().map{it.hanzi}
+  } else {
+   knownOrder + combined.map{it.hanzi}.filterNot{it in knownOrder}
+  }
+  if(mergedOrder!=savedOrder) reviewPrefs.edit().putString("deck_order",mergedOrder.joinToString("|")).apply()
+  mutableStateListOf<Word>().apply { addAll(mergedOrder.mapNotNull{byHanzi[it]}) }
+ }
+ LaunchedEffect(deck.size) {
+  if(deck.isNotEmpty()) {
+   val safeIndex=index.coerceIn(0,deck.lastIndex)
+   if(safeIndex!=index) {
+    index=safeIndex
+    reviewPrefs.edit().putInt("deck_index",safeIndex).apply()
+   }
   }
  }
  val word = deck[index.coerceIn(0, deck.lastIndex)]
