@@ -58,10 +58,22 @@ function structuredResponseIsValid(route,text,payload) {
  }
  if(route==="/flashcard") {
   const count=Math.max(5,Math.min(20,Number(payload.count)||10));
-  return Array.isArray(value) && value.length===count && value.every(card=>
-   card && typeof card.hanzi==="string" && card.hanzi.trim() &&
-   typeof card.pinyin==="string" && card.pinyin.trim() &&
-   typeof card.meaning_vi==="string" && card.meaning_vi.trim());
+  if(!Array.isArray(value)||value.length!==count) return false;
+  const seen=new Set();
+  return value.every(card=>{
+   if(!card||typeof card!=="object"||Array.isArray(card)) return false;
+   const hanzi=typeof card.hanzi==="string"?card.hanzi.trim():"";
+   const pinyin=typeof card.pinyin==="string"?card.pinyin.trim():"";
+   const meaning=typeof card.meaning_vi==="string"?card.meaning_vi.trim():"";
+   if(!hanzi||hanzi.length>80||seen.has(hanzi)||!pinyin||pinyin.length>160||
+      !meaning||meaning.length>500) return false;
+   seen.add(hanzi);
+   // Optional learning aids must remain bounded strings when supplied.
+   for(const field of ["example","example_pinyin","example_vi","category","level","image_search_query","audio_text"]) {
+    if(card[field]!=null&&(typeof card[field]!=="string"||card[field].length>1000)) return false;
+   }
+   return true;
+  });
  }
  if(route==="/translate") {
   const expected=(Array.isArray(payload.words)?payload.words.slice(0,20):[])
