@@ -80,6 +80,26 @@ test("flashcard endpoint requires the requested count and Vietnamese fields", as
   assert.equal((await response.json()).model, "gemini-3.8-flash");
 });
 
+test("flashcard output rejects duplicate Hanzi and retries a valid fallback batch", async t => {
+  let calls = 0;
+  t.mock.method(globalThis, "fetch", async () => {
+    calls++;
+    const cards = Array.from({ length: 5 }, (_, i) => ({
+      hanzi: calls === 1 ? (i === 4 ? "词1" : `词${i + 1}`) : `新词${i + 1}`,
+      pinyin: "cí", meaning_vi: "từ vựng",
+      example: "这是一个词。", example_pinyin: "zhè shì yí ge cí", example_vi: "Đây là một từ."
+    }));
+    return geminiResponse(JSON.stringify(cards));
+  });
+  const response = await worker.fetch(post("/flashcard", { topic: "công việc", level: "HSK 2", count: 5 }), env);
+  assert.equal(response.status, 200);
+  assert.equal(calls, 2);
+  const body = await response.json();
+  assert.equal(body.model, "gemini-3.5-flash-lite");
+  const cards = JSON.parse(body.text);
+  assert.equal(new Set(cards.map(card => card.hanzi)).size, 5);
+});
+
 test("evaluate endpoint only accepts a scored correction object", async t => {
   t.mock.method(globalThis, "fetch", async (_url, init) => {
     const requestBody = JSON.parse(init.body);
