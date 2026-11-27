@@ -19,14 +19,21 @@ object HskVocabularyRepository {
 
     suspend fun load(context: Context): List<DictWord> = withContext(Dispatchers.IO) {
         val cache = File(context.filesDir, CACHE_FILE)
+        var cachedEntries = emptyList<DictWord>()
         try {
             if (cache.exists() && cache.length() > 1000) {
-                val cached = parse(cache.readText())
-                if (cached.isNotEmpty()) return@withContext applyVietnameseGloss(cached)
+                cachedEntries = parse(cache.readText())
+                // A partial cache is a fallback, not a permanent success: retry missing HSK levels.
+                val cachedLevels = cachedEntries.map { it.level }.toSet()
+                if ((1..7).all { it in cachedLevels }) {
+                    return@withContext applyVietnameseGloss(cachedEntries)
+                }
             }
         } catch (_: Exception) { /* corrupt cache: try online */ }
 
-        val entries = mutableListOf<DictWord>()
+        // Keep usable cached levels while refreshing the source; a temporary outage must not
+        // erase words already available, and must not prevent missing levels being retried.
+        val entries = cachedEntries.toMutableList()
         val failures = mutableListOf<String>()
         // Each level is isolated: one missing source file must not discard all downloaded levels.
         for (level in 1..6) {
