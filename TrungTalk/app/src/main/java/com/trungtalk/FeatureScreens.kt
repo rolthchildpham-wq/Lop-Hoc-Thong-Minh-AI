@@ -681,11 +681,14 @@ fun VocabularyScreen() {
         val clean=raw.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
         val array=org.json.JSONArray(clean)
         val batchGlosses=mutableMapOf<String,String>()
+        val requestedHanzi=batch.map { it.hanzi }.toSet()
         for(i in 0 until array.length()) {
-         val item=array.optJSONObject(i)?:continue
+         val item=array.optJSONObject(i) ?: throw IllegalStateException("Kết quả dịch có phần tử không phải JSON object.")
          val hanzi=item.optString("hanzi").trim()
          val meaning=item.optString("meaning_vi").trim()
-         if(hanzi.isNotBlank()&&meaning.isNotBlank()&&batch.any{it.hanzi==hanzi}) batchGlosses[hanzi]=meaning
+         if(hanzi.isBlank() || hanzi !in requestedHanzi) throw IllegalStateException("AI trả về từ ngoài lô yêu cầu: ${hanzi.ifBlank { "(trống)" }}")
+         if(meaning.isBlank() || meaning.length>500) throw IllegalStateException("Nghĩa tiếng Việt không hợp lệ cho từ $hanzi.")
+         if(batchGlosses.put(hanzi,meaning)!=null) throw IllegalStateException("AI trả trùng kết quả dịch cho từ $hanzi.")
         }
         val missing=batch.filter{it.hanzi !in batchGlosses}
         if(missing.isNotEmpty()) throw IllegalStateException("AI thiếu nghĩa: ${missing.take(5).joinToString{it.hanzi}}")
