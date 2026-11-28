@@ -368,10 +368,10 @@ fun SrsScreen() {
  var dictionary by remember { mutableStateOf<List<DictWord>>(starterDictionary) }
  val viGlossPrefs=remember { ctx.getSharedPreferences("hsk_vietnamese_glosses",android.content.Context.MODE_PRIVATE) }
  LaunchedEffect(Unit) { runCatching { dictionary=(starterDictionary+HskVocabularyRepository.load(ctx)).distinctBy { it.hanzi+"|"+it.pinyin } } }
- var due by remember{mutableStateOf<List<SrsCard>>(emptyList())}
+ val due by dao.dueCards(System.currentTimeMillis()).collectAsState(initial=emptyList())
  var busy by remember{mutableStateOf(false)}
  var reviewError by remember{mutableStateOf("")}
- LaunchedEffect(Unit){due=dao.due()}
+
  val intervals=listOf(1,3,7,14,30)
  Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
   Text("Ôn tập SRS – Leitner",style=MaterialTheme.typography.headlineSmall)
@@ -412,7 +412,7 @@ fun SrsScreen() {
     OutlinedButton(enabled=!busy,onClick={busy=true;reviewError="";scope.launch{
      try {
       dao.save(card.copy(box=1,dueAt=System.currentTimeMillis()+10*60*1000,repetitions=card.repetitions+1))
-      due=dao.due()
+
      } catch(e:Exception) { reviewError=e.message ?: "Không lưu được tiến độ ôn." }
      finally { busy=false }
     }},modifier=Modifier.weight(1f)){Text("Chưa nhớ · 10 phút")}
@@ -420,7 +420,7 @@ fun SrsScreen() {
      try {
       val b=nextBox
       dao.save(card.copy(box=b,dueAt=System.currentTimeMillis()+nextDays*86400000L,repetitions=card.repetitions+1))
-      due=dao.due()
+
      } catch(e:Exception) { reviewError=e.message ?: "Không lưu được tiến độ ôn." }
      finally { busy=false }
     }},modifier=Modifier.weight(1f)){Text("Đã nhớ · +${nextDays} ngày")}
