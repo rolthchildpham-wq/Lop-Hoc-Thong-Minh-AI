@@ -25,6 +25,7 @@ data class PracticeLog(@PrimaryKey(autoGenerate = true) val id: Long = 0, val ca
 }
 @Dao interface SrsDao {
  @Query("SELECT * FROM srs_cards WHERE dueAt <= :now ORDER BY box ASC") suspend fun due(now: Long = System.currentTimeMillis()): List<SrsCard>
+ @Query("SELECT * FROM srs_cards WHERE dueAt <= :now ORDER BY box ASC") fun dueCards(now: Long): Flow<List<SrsCard>>
  @Query("SELECT * FROM srs_cards ORDER BY box ASC") fun all(): Flow<List<SrsCard>>
  @Query("SELECT * FROM srs_cards WHERE cardId = :id LIMIT 1") suspend fun get(id: String): SrsCard?
  @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun save(item: SrsCard)
